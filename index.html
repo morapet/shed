@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Zahradní domek — návrh</title>
+<style>
+  :root {
+    --bg: #f5f5f0;
+    --panel: #ffffff;
+    --frame: #2a2a2a;
+    --wall: #e0ddd8;
+    --roof: #8b7355;
+    --zone-div: #1a6bbf;
+    --z1: #c8dff5;
+    --z2: #fde8c8;
+    --z3: #e0e0e0;
+    --accent: #2563eb;
+    --text: #1a1a1a;
+    --text-2: #555550;
+    --dim: #888880;
+    --border: #dcdcd4;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 5;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .actions button {
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    margin-left: 6px;
+  }
+  header .actions button:hover { border-color: var(--accent); color: var(--accent); }
+
+  .app {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    grid-template-rows: auto auto;
+    gap: 12px;
+    padding: 12px;
+    max-width: 1600px;
+    margin: 0 auto;
+    min-height: calc(100vh - 54px);
+    box-sizing: border-box;
+  }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+  }
+
+  .viewport-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    height: 52vh;
+    min-height: 360px;
+  }
+  #viewport { display: block; width: 100%; height: 100%; }
+  .readout {
+    position: absolute; left: 10px; bottom: 10px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px; font-size: 12px; color: var(--text-2);
+  }
+  .readout strong { color: var(--text); }
+
+  .controls {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    overflow-y: auto;
+    max-height: calc(100vh - 120px);
+  }
+  .controls h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text-2); margin: 14px 0 6px 0; font-weight: 600;
+  }
+  .controls h2:first-child { margin-top: 0; }
+  .slider-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .slider-row label { flex: 1; font-size: 12px; color: var(--text); }
+  .slider-row input[type=range] { flex: 1.4; }
+  .slider-row .val { width: 55px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-2); }
+  .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-top: 4px; }
+  .toggles label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .radio-group { display: flex; flex-direction: column; gap: 3px; }
+  .radio-group label { font-size: 12px; cursor: pointer; }
+
+  .tabs-wrap {
+    grid-column: 1 / -1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .tabs {
+    display: flex; border-bottom: 1px solid var(--border);
+    background: #faf9f4;
+    overflow-x: auto;
+  }
+  .tabs button {
+    background: transparent; border: 0; padding: 10px 16px;
+    cursor: pointer; font-size: 13px; color: var(--text-2);
+    border-bottom: 2px solid transparent; white-space: nowrap;
+  }
+  .tabs button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab-panel { padding: 16px; }
+  .tab-panel.hidden { display: none; }
+  svg.dwg { width: 100%; height: auto; background: #fafaf5; border: 1px solid var(--border); border-radius: 6px; }
+  table.mat { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.mat th, table.mat td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  table.mat th { background: #faf9f4; color: var(--text-2); font-weight: 600; }
+  table.mat td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Shelf editor */
+  .shelves-list { display: flex; flex-direction: column; gap: 6px; }
+  .shelf-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding: 6px; background: #faf9f4; border-radius: 5px; font-size: 11.5px; }
+  .shelf-row .meta { color: var(--text-2); }
+  .shelf-row button { background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: 4px; cursor: pointer; padding: 2px 6px; font-size: 11px; }
+  .shelf-row button:hover { color: #b00; border-color: #b00; }
+  .mini-form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 6px; margin-top: 6px; }
+  .mini-form label { font-size: 11px; color: var(--text-2); display: flex; flex-direction: column; gap: 2px; }
+  .mini-form input, .mini-form select { font-size: 12px; padding: 3px 5px; border: 1px solid var(--border); border-radius: 4px; }
+  .mini-form .full { grid-column: 1 / -1; }
+  button.primary {
+    background: var(--accent); color: #fff; border: 0;
+    border-radius: 5px; padding: 6px 10px; font-size: 12px; cursor: pointer;
+  }
+  button.primary:hover { background: #1d4ed8; }
+
+
+  @media print {
+    header, .controls, #gate, .tabs { display: none !important; }
+    .app { display: block; padding: 0; }
+    .viewport-wrap { page-break-after: always; }
+    .tabs-wrap { border: 0; }
+    .tab-panel { display: block !important; page-break-inside: avoid; padding: 8mm 0; }
+    .tab-panel.hidden { display: block !important; }
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+
+<header>
+  <h1>Zahradní domek — návrh</h1>
+  <div class="actions">
+    <button id="btn-transparent">Průhlednost: ZAP</button>
+    <button id="btn-print">Tisk plánu</button>
+    <button id="btn-copy">Kopírovat souhrn</button>
+  </div>
+</header>
+
+<div class="app">
+  <div class="viewport-wrap">
+    <canvas id="viewport"></canvas>
+    <div class="readout">
+      Sklon střechy: <strong id="rd-pitch">–</strong> &nbsp;·&nbsp;
+      Poměr: <strong id="rd-ratio">–</strong> &nbsp;·&nbsp;
+      Krokev: <strong id="rd-rafter">–</strong> m
+    </div>
+  </div>
+
+  <div class="controls">
+    <h2>Rozměry</h2>
+    <div class="slider-row"><label>Délka (L)</label><input type="range" id="s-length" min="3" max="7" step="0.1" value="4.5"/><span class="val" id="v-length">4.50 m</span></div>
+    <div class="slider-row"><label>Hloubka (D)</label><input type="range" id="s-depth" min="0.8" max="2.5" step="0.1" value="1.2"/><span class="val" id="v-depth">1.20 m</span></div>
+    <div class="slider-row"><label>Zadní výška</label><input type="range" id="s-back" min="2.0" max="3.5" step="0.1" value="2.5"/><span class="val" id="v-back">2.50 m</span></div>
+    <div class="slider-row"><label>Přední výška</label><input type="range" id="s-front" min="2.1" max="2.8" step="0.1" value="2.2"/><span class="val" id="v-front">2.20 m</span></div>
+
+    <h2>Zóny</h2>
+    <div class="slider-row"><label>Zóna 1 (nádrž)</label><input type="range" id="s-z1" min="0.8" max="1.5" step="0.05" value="1.0"/><span class="val" id="v-z1">1.00 m</span></div>
+    <div class="slider-row"><label>Zóna 3 (otevřená)</label><input type="range" id="s-z3" min="1.0" max="2.0" step="0.05" value="1.5"/><span class="val" id="v-z3">1.50 m</span></div>
+    <div class="slider-row"><label>Zóna 2 (počítaná)</label><span class="val" id="v-z2" style="flex:1.4; text-align:left; color:var(--text-2);">2.00 m</span></div>
+
+    <h2>Vrstvy</h2>
+    <div class="toggles">
+      <label><input type="checkbox" id="t-frame" checked/> Rám</label>
+      <label><input type="checkbox" id="t-walls" checked/> Stěny</label>
+      <label><input type="checkbox" id="t-roof" checked/> Střecha</label>
+      <label><input type="checkbox" id="t-zones" checked/> Zóny</label>
+
+      <label><input type="checkbox" id="t-dims"/> Kóty</label>
+      <label><input type="checkbox" id="t-shelves" checked/> Police</label>
+      <label><input type="checkbox" id="t-tank" checked/> Nádrž</label>
+      <label><input type="checkbox" id="t-doors" checked/> Dveře</label>
+    </div>
+
+    <h2>Základy</h2>
+    <div class="radio-group">
+      <label><input type="radio" name="foundation" value="pads" checked/> Betonové patky</label>
+      <label><input type="radio" name="foundation" value="strip"/> Pásový základ</label>
+      <label><input type="radio" name="foundation" value="gravel"/> Štěrk + impregnované trámy</label>
+    </div>
+
+    <h2>Krytina</h2>
+    <div class="radio-group">
+      <label><input type="radio" name="roofing" value="epdm" checked/> EPDM fólie</label>
+      <label><input type="radio" name="roofing" value="bitumen"/> Asfaltové šindele</label>
+      <label><input type="radio" name="roofing" value="metal"/> Trapézový plech</label>
+    </div>
+
+    <h2>Police</h2>
+    <div id="shelves-list" class="shelves-list"></div>
+    <div class="mini-form">
+      <label>Zóna
+        <select id="new-shelf-zone">
+          <option value="1">Zóna 1</option>
+          <option value="2" selected>Zóna 2</option>
+          <option value="3">Zóna 3</option>
+        </select>
+      </label>
+      <label>Stěna
+        <select id="new-shelf-wall">
+          <option value="back" selected>Zadní</option>
+          <option value="left">Levá (boční)</option>
+          <option value="right">Pravá (boční)</option>
+        </select>
+      </label>
+      <label>Výška (m)<input type="number" id="new-shelf-h" min="0.3" max="2.5" step="0.05" value="1.6"/></label>
+      <label>Hloubka (m)<input type="number" id="new-shelf-d" min="0.2" max="1.0" step="0.05" value="0.3"/></label>
+      <label class="full">Popis<input type="text" id="new-shelf-label" placeholder="např. nářadí, sezónní věci" value="Police"/></label>
+      <div class="full"><button class="primary" id="btn-add-shelf">Přidat polici</button></div>
+    </div>
+  </div>
+
+  <div class="tabs-wrap">
+    <div class="tabs">
+      <button class="active" data-tab="plan">Půdorys</button>
+      <button data-tab="front">Čelní pohled</button>
+      <button data-tab="side">Boční řez</button>
+      <button data-tab="framing">Rám</button>
+      <button data-tab="materials">Výkaz materiálu</button>
+    </div>
+    <div class="tab-panel" id="tab-plan"><svg class="dwg" id="svg-plan" viewBox="0 0 900 420"></svg></div>
+    <div class="tab-panel hidden" id="tab-front"><svg class="dwg" id="svg-front" viewBox="0 0 900 360"></svg></div>
+    <div class="tab-panel hidden" id="tab-side"><svg class="dwg" id="svg-side" viewBox="0 0 600 400"></svg></div>
+    <div class="tab-panel hidden" id="tab-framing"><svg class="dwg" id="svg-framing" viewBox="0 0 900 620"></svg></div>
+    <div class="tab-panel hidden" id="tab-materials"><div id="materials-tbl"></div></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+window.addEventListener('load', initApp);
+
+/* ===== State ===== */
+const state = {
+  length: 4.5, depth: 1.2, back: 2.5, front: 2.2,
+  z1: 1.0, z3: 1.0,
+  foundation: 'pads',
+  roofing: 'epdm',
+  layers: { frame: true, walls: true, roof: true, zones: true, dims: false, shelves: true, tank: true, doors: true },
+  shelves: [
+    { id: 1, zone: 2, wall: 'back',  height: 1.6, depth: 0.3,  label: 'Sezónní věci (horní police)' },
+    { id: 2, zone: 2, wall: 'left',  height: 0.6, depth: 0.5,  label: 'Police – nářadí (spodní)' },
+    { id: 5, zone: 2, wall: 'left',  height: 1.2, depth: 0.5,  label: 'Police – nářadí (horní)' },
+    { id: 6, zone: 2, wall: 'right', height: 1.6, depth: 0.4,  label: 'Police za dveřmi' },
+    { id: 3, zone: 3, wall: 'back',  height: 0.4, depth: 0.5,  label: 'Spodní polička – dlaždice' },
+    { id: 4, zone: 3, wall: 'back',  height: 1.2, depth: 0.5,  label: 'Horní polička' }
+  ],
+  nextShelfId: 6,
+  transparent: true,
+};
+function z2() { return state.length - state.z1 - state.z3; }
+
+/* ===== Three.js scene ===== */
+let renderer, scene, camera, shedGroup;
+let cam = { theta: Math.PI * 0.25, phi: Math.PI * 0.3, radius: 10 };
+let target = new THREE.Vector3(0, 1.0, 0);
+// doorPivots: [{ pivot: Group, open: bool, targetAngle: num, currentAngle: num, axis: 'L'|'R' }]
+let doorPivots = [];
+
+function initThree() {
+  const canvas = document.getElementById('viewport');
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setClearColor(0xf5f5f0, 1);
+  const resize = () => {
+    const rect = canvas.getBoundingClientRect();
+    renderer.setSize(rect.width, rect.height, false);
+    if (camera) { camera.aspect = rect.width / rect.height; camera.updateProjectionMatrix(); }
+  };
+  window.addEventListener('resize', resize);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  resize();
+
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x606060, 0.9);
+  scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.55);
+  dir.position.set(5, 8, 4);
+  scene.add(dir);
+
+  // Ground grid for reference
+  const grid = new THREE.GridHelper(12, 24, 0xcccccc, 0xe8e8e0);
+  grid.position.y = 0;
+  scene.add(grid);
+
+  shedGroup = new THREE.Group();
+  scene.add(shedGroup);
+
+  // Mouse orbit
+  let dragging = false, lx = 0, ly = 0;
+  canvas.addEventListener('mousedown', e => { dragging = true; lx = e.clientX; ly = e.clientY; });
+  window.addEventListener('mouseup', () => dragging = false);
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - lx, dy = e.clientY - ly;
+    lx = e.clientX; ly = e.clientY;
+    cam.theta -= dx * 0.01;
+    cam.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.02, cam.phi - dy * 0.008));
+  });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    cam.radius = Math.max(3, Math.min(25, cam.radius * (1 + e.deltaY * 0.001)));
+  }, { passive: false });
+  // Touch
+  let touching = false, tx = 0, ty = 0;
+  canvas.addEventListener('touchstart', e => { if (e.touches.length === 1) { touching = true; tx = e.touches[0].clientX; ty = e.touches[0].clientY; } });
+  canvas.addEventListener('touchmove', e => {
+    if (!touching || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - tx, dy = e.touches[0].clientY - ty;
+    tx = e.touches[0].clientX; ty = e.touches[0].clientY;
+    cam.theta -= dx * 0.01;
+    cam.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.02, cam.phi - dy * 0.008));
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchend', () => touching = false);
+
+  // Click → toggle door
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  canvas.addEventListener('click', e => {
+    // Only act if mouse didn't drag (delta < 4px)
+    const rect = canvas.getBoundingClientRect();
+    mouse.x =  ((e.clientX - rect.left)  / rect.width)  * 2 - 1;
+    mouse.y = -((e.clientY - rect.top)   / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(shedGroup.children, true);
+    for (const hit of hits) {
+      const dp = hit.object.userData.doorPivot;
+      if (dp) {
+        dp.open = !dp.open;
+        dp.targetAngle = dp.open ? dp.openAngle : 0;
+        break;
+      }
+    }
+  });
+
+  renderLoop();
+}
+
+function renderLoop() {
+  requestAnimationFrame(renderLoop);
+  // Animate door pivots
+  doorPivots.forEach(dp => {
+    const diff = dp.targetAngle - dp.currentAngle;
+    if (Math.abs(diff) > 0.001) {
+      dp.currentAngle += diff * 0.12;
+      dp.pivot.rotation.y = dp.currentAngle;
+    }
+  });
+  // Recenter on shed centre
+  target.set(state.length / 2, state.back * 0.4, state.depth / 2);
+  const x = target.x + cam.radius * Math.sin(cam.phi) * Math.cos(cam.theta);
+  const y = target.y + cam.radius * Math.cos(cam.phi);
+  const z = target.z + cam.radius * Math.sin(cam.phi) * Math.sin(cam.theta);
+  camera.position.set(x, y, z);
+  camera.lookAt(target);
+  renderer.render(scene, camera);
+}
+
+/* ===== 3D helpers ===== */
+const COLORS = {
+  frame: 0x2a2a2a, wall: 0x9c7248, roof: 0x8b7355, zoneDiv: 0x1a6bbf,
+  z1: 0xc8dff5, z2: 0xfde8c8, z3: 0xe0e0e0, tank: 0x3060a0,
+  cladding: 0xa8855b, shelf: 0x9a7a4f, dim: 0x888880
+};
+
+// Coordinate system: X=length (0→L), Y=height (0 at ground), Z=depth (0=back, D=front)
+
+function beam(w, h, l, color) {
+  const g = new THREE.BoxGeometry(w, h, l);
+  const m = new THREE.MeshLambertMaterial({ color });
+  return new THREE.Mesh(g, m);
+}
+
+function line(x1,y1,z1, x2,y2,z2, color) {
+  const g = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(x1,y1,z1), new THREE.Vector3(x2,y2,z2)
+  ]);
+  return new THREE.Line(g, new THREE.LineBasicMaterial({ color, linewidth: 2 }));
+}
+
+function planeMesh(w, h, color, opacity, doubleSide = true) {
+  const g = new THREE.PlaneGeometry(w, h);
+  const m = new THREE.MeshLambertMaterial({
+    color, transparent: opacity < 1, opacity,
+    side: doubleSide ? THREE.DoubleSide : THREE.FrontSide
+  });
+  return new THREE.Mesh(g, m);
+}
+
+function buildShed() {
+  // Clear
+  while (shedGroup.children.length) {
+    const c = shedGroup.children.pop();
+    c.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+  }
+
+  const L = state.length, D = state.depth, HB = state.back, HF = state.front;
+  const z1 = state.z1, z3 = state.z3, z2w = z2();
+  const tr = state.transparent;
+  const studSpacing = 0.6, joistSpacing = 0.5, rafterSpacing = 0.5;
+
+  const groups = { frame: new THREE.Group(), walls: new THREE.Group(), roof: new THREE.Group(),
+                   zones: new THREE.Group(), dims: new THREE.Group(),
+                   shelves: new THREE.Group(), tank: new THREE.Group(), doors: new THREE.Group() };
+
+  /* ---- FRAME ---- */
+  const bw = 0.05; // beam width
+  // Floor joists (run front-to-back): along Z, spaced along X
+  const joistCount = Math.ceil(L / joistSpacing) + 1;
+  for (let i = 0; i < joistCount; i++) {
+    const x = Math.min(i * joistSpacing, L);
+    const j = beam(bw, 0.1, D, COLORS.frame);
+    j.position.set(x, 0.05, D/2);
+    groups.frame.add(j);
+  }
+  // Rim joists (perimeter) - doubled
+  for (let k = 0; k < 2; k++) {
+    const off = k * 0.05;
+    // front rim
+    const fr = beam(L, 0.1, bw, COLORS.frame);
+    fr.position.set(L/2, 0.05, D - bw/2 - off);
+    groups.frame.add(fr);
+    // back rim
+    const br = beam(L, 0.1, bw, COLORS.frame);
+    br.position.set(L/2, 0.05, bw/2 + off);
+    groups.frame.add(br);
+  }
+
+  // Wall studs for back wall, front wall, left, right partitions for zone1 and zone 3 boundary
+  const addStudsOnLine = (x0, z0, len, dirAxis, wallHeightFn) => {
+    // wallHeightFn(x) returns height at that x for back/front wall variation (lean-to)
+    const n = Math.ceil(len / studSpacing) + 1;
+    for (let i = 0; i < n; i++) {
+      const t = Math.min(i * studSpacing, len);
+      const x = dirAxis === 'x' ? x0 + t : x0;
+      const z = dirAxis === 'z' ? z0 + t : z0;
+      const h = wallHeightFn(x, z);
+      const s = beam(bw, h, bw, COLORS.frame);
+      s.position.set(x, h/2, z);
+      groups.frame.add(s);
+    }
+  };
+  // Back wall studs (height = HB)
+  addStudsOnLine(0, bw/2, L, 'x', () => HB);
+  // Front wall framing — proper door rough openings
+  const frontEnd = z1 + z2w;
+  const fZ = D - bw / 2;   // z-centreline of front-wall framing
+  const hdrT = 0.15;        // header depth (150 mm)
+
+  const fStud = (x, h) => {
+    const s = beam(bw, h, bw, COLORS.frame); s.position.set(x, h / 2, fZ); groups.frame.add(s);
+  };
+  const fJack = (x, h) => {                          // trimmer stud (slightly inset)
+    const s = beam(bw * 0.85, h, bw, COLORS.frame); s.position.set(x, h / 2, fZ); groups.frame.add(s);
+  };
+  const fHBeam = (cx, cy, w, h) => {
+    const b = beam(w, h, bw, COLORS.frame); b.position.set(cx, cy, fZ); groups.frame.add(b);
+  };
+
+  // ── Zone 1 — full-width removable panel, no internal framing in opening ──
+  // Left king = corner post at x=0. Right king at zone boundary (x=z1).
+  // No trimmer studs, no header — just the two king posts and top plate.
+  const z1DH = HF; // panel is full front-wall height
+  fStud(z1 - bw, HF); // right king stud at zone-1 / zone-2 boundary
+
+  // ── Zone 2 — solid left + double doors 1.6 m + solid 0.4 m right ───────────
+  const z2RightSolid = 0.4;                              // 40 cm solid on right
+  const z2DoorW  = Math.min(1.6, z2w - 0.5 - z2RightSolid); // door width
+  const z2SlideW = z2w - z2DoorW - z2RightSolid;        // solid wood left section
+  const z2DH     = 2.0;   // fixed door clear height
+
+  fStud(z1, HF);                                         // left king (zone boundary)
+  // Studs in left solid zone
+  for (let sx = z1 + studSpacing; sx < z1 + z2SlideW - bw * 1.5; sx += studSpacing) fStud(sx, HF);
+  // Mullion king stud: left edge of door opening
+  const mullionX = z1 + z2SlideW;
+  fStud(mullionX, HF);
+  // Jack/trimmer studs flanking the door opening
+  const z2JLx = mullionX + bw;
+  const z2JRx = mullionX + bw + z2DoorW;
+  fJack(z2JLx, z2DH);
+  fJack(z2JRx, z2DH);
+  // King stud: right edge of door opening (left edge of right solid zone)
+  const z2RightKingX = z2JRx + bw;
+  fStud(z2RightKingX, HF);
+  // Studs in right solid zone
+  for (let sx = z2RightKingX + studSpacing; sx < z1 + z2w - bw * 1.5; sx += studSpacing) fStud(sx, HF);
+  // No separate header — top plate is doubled 50×150 mm across full zone 2, carries the load
+  fHBeam(z1 + z2w / 2, HF - 0.075, z2w, 0.15);
+  // Left end wall studs (x=0) along Z — height linearly from HB at back to HF at front
+  const heightAlongDepth = (z) => HB - (HB - HF) * (z / D);
+  addStudsOnLine(bw/2, 0, D, 'z', (_, z) => heightAlongDepth(z));
+  // Right end wall studs (x=L) — but only for zone 3 end — always solid
+  addStudsOnLine(L - bw/2, 0, D, 'z', (_, z) => heightAlongDepth(z));
+  // Partition between zone 1 and zone 2
+  addStudsOnLine(z1, 0, D, 'z', (_, z) => heightAlongDepth(z));
+  // Partition between zone 2 and zone 3
+  addStudsOnLine(z1 + z2w, 0, D, 'z', (_, z) => heightAlongDepth(z));
+
+  // Top plates (back and front)
+  const tpBack = beam(L, bw, bw, COLORS.frame); tpBack.position.set(L/2, HB - bw/2, bw/2); groups.frame.add(tpBack);
+  const tpFront = beam(frontEnd, bw, bw, COLORS.frame); tpFront.position.set(frontEnd/2, HF - bw/2, D - bw/2); groups.frame.add(tpFront);
+  // Fascia beam along front of zone 3 open bay (carries rafter tails)
+  const tpZ3 = beam(z3 + bw, 0.1, bw, COLORS.frame); tpZ3.position.set(frontEnd + z3/2, HF - 0.05, D - bw/2); groups.frame.add(tpZ3);
+
+  // Corner posts - doubled (visual)
+  const cornerPositions = [ [0,0], [L,0], [0,D], [z1+z2w,D], [L,D] ];
+  cornerPositions.forEach(([cx, cz]) => {
+    const h = heightAlongDepth(cz);
+    const p = beam(bw*1.2, h, bw*1.2, COLORS.frame);
+    p.position.set(cx, h/2, cz);
+    groups.frame.add(p);
+  });
+
+  // Roof rafters (run back-to-front, spaced along length)
+  const rafterLen = Math.sqrt(D*D + (HB-HF)*(HB-HF)) + 0.3;
+  const rafterCount = Math.ceil(L / rafterSpacing) + 1;
+  const pitchAngle = Math.atan2(HB - HF, D);
+  for (let i = 0; i < rafterCount; i++) {
+    const x = Math.min(i * rafterSpacing, L);
+    const r = beam(bw, 0.1, rafterLen, COLORS.frame);
+    // Rafter midpoint: from (x, HB, 0) to (x, HF, D), plus 0.3 overhang past D
+    const midZ = D/2 + 0.15;
+    const midY = (HB + HF) / 2 - 0.15 * Math.tan(pitchAngle);
+    r.position.set(x, midY, midZ);
+    r.rotation.x = pitchAngle; // tilt around X axis so it goes from high-back to low-front
+    groups.frame.add(r);
+  }
+  // Ridge ledger on back wall
+  const ledger = beam(L, 0.1, bw, COLORS.frame);
+  ledger.position.set(L/2, HB - 0.05, bw);
+  groups.frame.add(ledger);
+
+  /* ---- DOORS ---- */
+  doorPivots = [];
+  const doorOp = tr ? 0.55 : 1.0;
+  const doorPanelMat  = new THREE.MeshLambertMaterial({ color: 0x7a5c38, transparent: tr, opacity: doorOp });
+  const doorFrameMat2 = new THREE.MeshLambertMaterial({ color: 0x4a3520, transparent: tr, opacity: Math.min(doorOp + 0.15, 1) });
+  const handleMat     = new THREE.MeshLambertMaterial({ color: 0xb8860b });
+  const dTk = 0.04;
+
+  // Build a door leaf. Origin = hinge line at x=0, y=0.
+  // hingeEdge='L': panel extends +x; hingeEdge='R': panel extends -x.
+  // All geometry at local z=dTk/2 (door face flush with front wall when pivot is at z=D).
+  const makeDoorLeaf = (w, h, hingeEdge) => {
+    const g = new THREE.Group();
+    const ox = hingeEdge === 'L' ? w / 2 : -w / 2;
+    const zf = dTk / 2;
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(w - 0.02, h - 0.02, dTk), doorPanelMat);
+    panel.position.set(ox, h / 2, zf); g.add(panel);
+    [[w, 0.05, h - 0.025], [w, 0.05, 0.025]].forEach(([rw, rh, ry]) => {
+      const r = new THREE.Mesh(new THREE.BoxGeometry(rw, rh, dTk + 0.005), doorFrameMat2);
+      r.position.set(ox, ry, zf); g.add(r);
+    });
+    (hingeEdge === 'L' ? [0.025, w - 0.025] : [-0.025, -(w - 0.025)]).forEach(sx => {
+      const s = new THREE.Mesh(new THREE.BoxGeometry(0.05, h, dTk + 0.005), doorFrameMat2);
+      s.position.set(sx, h / 2, zf); g.add(s);
+    });
+    const mid = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, dTk + 0.005), doorFrameMat2);
+    mid.position.set(ox, h * 0.45, zf); g.add(mid);
+    const hx = hingeEdge === 'L' ? w - 0.09 : -(w - 0.09);
+    const hnd = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 8), handleMat);
+    hnd.rotation.z = Math.PI / 2;
+    hnd.position.set(hx, h * 0.5, zf + 0.035); g.add(hnd);
+    return g;
+  };
+
+  // Place pivot at hinge position on front wall (z=D), leaf geometry is local z=dTk/2.
+  // Rotating pivot.y by openAngle swings the free end outward (toward +Z, outside shed).
+  const addDoorPivot = (pivotX, leafGroup, openAngle) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(pivotX, 0, D);
+    pivot.add(leafGroup);
+    groups.doors.add(pivot);
+    const dp = { pivot, open: false, targetAngle: 0, currentAngle: 0, openAngle };
+    doorPivots.push(dp);
+    leafGroup.traverse(o => { if (o.isMesh) o.userData.doorPivot = dp; });
+  };
+
+  // Three.js Y-rotation: +π/2 maps +X→-Z (inside), -π/2 maps +X→+Z (outside).
+  // Zone 1 — removable panel, no hinges, held by 4 wing-bolt clips
+  const z1PW = z1 - bw; // full zone 1 width minus left corner post
+  const z1Panel = new THREE.Group();
+  const z1PanelBoard = new THREE.Mesh(new THREE.BoxGeometry(z1PW - 0.02, z1DH - 0.02, dTk), doorPanelMat);
+  z1PanelBoard.position.set(z1PW / 2, z1DH / 2, dTk / 2);
+  z1Panel.add(z1PanelBoard);
+  [[z1PW, 0.05, z1PW/2, z1DH-0.025], [z1PW, 0.05, z1PW/2, 0.025],
+   [0.05, z1DH, 0.025, z1DH/2],      [0.05, z1DH, z1PW-0.025, z1DH/2]
+  ].forEach(([w, h, cx, cy]) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, dTk+0.005), doorFrameMat2);
+    m.position.set(cx, cy, dTk/2); z1Panel.add(m);
+  });
+  const clipMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+  [[0.08,0.15],[z1PW-0.08,0.15],[0.08,z1DH-0.15],[z1PW-0.08,z1DH-0.15]].forEach(([cx,cy]) => {
+    const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.025,6), clipMat);
+    knob.rotation.x = Math.PI/2; knob.position.set(cx, cy, dTk+0.012); z1Panel.add(knob);
+  });
+  z1Panel.position.set(bw, 0, D);
+  groups.doors.add(z1Panel);
+
+  // Zone 2 — left leaf: hinge at z2JLx, extends +x → -π/2 outward
+  const z2LeafW = (z2JRx - z2JLx) / 2 - 0.01;
+  addDoorPivot(z2JLx, makeDoorLeaf(z2LeafW, z2DH, 'L'), -Math.PI / 2);
+
+  // Zone 2 — right leaf: hinge at z2JRx, extends -x → +π/2 maps -x to +Z (outside)
+  addDoorPivot(z2JRx, makeDoorLeaf(z2LeafW, z2DH, 'R'), Math.PI / 2);
+
+  /* ---- WALLS ---- */
+  const wallOp  = tr ? 0.80 : 1.0;
+  const osbOp   = tr ? 0.75 : 1.0;
+  // OSB: back wall + zone partitions — flat panel, straw-tan colour
+  const osbMat   = () => new THREE.MeshLambertMaterial({ color: 0xd4b07a, transparent: tr, opacity: osbOp, side: THREE.DoubleSide });
+  // Exterior shiplap: front wall + end walls — darker warm wood
+  const woodOp   = tr ? 0.80 : 1.0;
+  const woodMat  = () => new THREE.MeshLambertMaterial({ color: COLORS.cladding, transparent: tr, opacity: woodOp, side: THREE.DoubleSide });
+
+  // ── Back wall — OSB flat plane on the outside of the back studs (z < 0) ──
+  const backW = new THREE.Mesh(new THREE.PlaneGeometry(L, HB), osbMat());
+  backW.position.set(L/2, HB/2, -0.012);
+  groups.walls.add(backW);
+
+  // ── Zone partitions — OSB flat planes (trapezoidal shape) ───────────────
+  const makePartition = (xPos) => {
+    const pShape = new THREE.Shape();
+    pShape.moveTo(0, 0); pShape.lineTo(D, 0); pShape.lineTo(D, HF); pShape.lineTo(0, HB); pShape.lineTo(0, 0);
+    const pMesh = new THREE.Mesh(new THREE.ShapeGeometry(pShape), osbMat());
+    pMesh.rotation.y = -Math.PI / 2;
+    pMesh.position.set(xPos, 0, 0);
+    groups.walls.add(pMesh);
+  };
+  makePartition(z1);
+  makePartition(z1 + z2w);
+
+  // ── Front wall — horizontal shiplap planks, cut around door openings ───────
+  const plankH = 0.12, plankGap = 0.01, plankTk = 0.022;
+  // Door rough openings: [xLeft, xRight, clearHeight]
+  const fDoorOpenings = [
+    [bw, z1 - bw, HF],      // zone 1 — full width, full height, no planks behind panel
+    [z2JLx, z2JRx, z2DH],   // zone 2 — double door opening only
+  ];
+  const drawFrontPlank = (xA, xB, y, ph) => {
+    if (xB - xA < 0.02) return;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(xB - xA, ph, plankTk), woodMat());
+    m.position.set((xA + xB) / 2, y + ph / 2, D + plankTk / 2);
+    groups.walls.add(m);
+  };
+  for (let y = 0; y < HF; y += plankH) {
+    const ph = Math.min(plankH - plankGap, HF - y);
+    if (ph <= 0) continue;
+    // Collect blocked x-ranges at this row height, sorted left→right
+    const blocked = fDoorOpenings
+      .filter(([,,mH]) => y < mH)
+      .map(([xa, xb]) => [xa, xb])
+      .sort((a, b) => a[0] - b[0]);
+    let curX = 0;
+    for (const [xa, xb] of blocked) {
+      drawFrontPlank(curX, xa, y, ph);
+      curX = xb;
+    }
+    drawFrontPlank(curX, frontEnd, y, ph);
+  }
+
+  // ── Left end wall — horizontal shiplap planks, trimmed to rake ──────────
+  // At height y the wall extends in Z from 0 to z_edge where height(z_edge)=y
+  // height(z) = HB - (HB-HF)*(z/D)  →  z_edge = D*(HB-y)/(HB-HF)
+  for (let y = 0; y < HB; y += plankH) {
+    const ph = Math.min(plankH - plankGap, HB - y);
+    if (ph <= 0) continue;
+    const midY = y + ph / 2;
+    const zEdge = (HB - HF) > 0.01 ? Math.min(D, D * (HB - midY) / (HB - HF)) : D;
+    if (zEdge <= 0) continue;
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(plankTk, ph, zEdge), woodMat());
+    plank.position.set(-plankTk / 2, midY, zEdge / 2);
+    groups.walls.add(plank);
+  }
+
+  // ── Right end wall — same but at x=L ────────────────────────────────────
+  for (let y = 0; y < HB; y += plankH) {
+    const ph = Math.min(plankH - plankGap, HB - y);
+    if (ph <= 0) continue;
+    const midY = y + ph / 2;
+    const zEdge = (HB - HF) > 0.01 ? Math.min(D, D * (HB - midY) / (HB - HF)) : D;
+    if (zEdge <= 0) continue;
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(plankTk, ph, zEdge), woodMat());
+    plank.position.set(L + plankTk / 2, midY, zEdge / 2);
+    groups.walls.add(plank);
+  }
+
+  /* ---- ROOF ---- */
+  const roofW = rafterLen;
+  const roofGeom = new THREE.PlaneGeometry(L, roofW);
+  const roofOp = tr ? 0.45 : 0.92;
+  const roofMat = new THREE.MeshLambertMaterial({ color: COLORS.roof, transparent: tr, opacity: roofOp, side: THREE.DoubleSide });
+  const roofMesh = new THREE.Mesh(roofGeom, roofMat);
+  roofMesh.rotation.x = pitchAngle - Math.PI / 2;
+  // Roof normal in world space after rotation.x=pitchAngle is (0, cos(pitch), sin(pitch)).
+  // Shift rafter half-depth (0.05) + OSB half-thickness (0.015) = 0.065 m along normal.
+  const rOff = 0.065;
+  const rNy = Math.cos(pitchAngle) * rOff;
+  const rNz = Math.sin(pitchAngle) * rOff;
+  roofMesh.position.set(L/2, (HB + HF) / 2 - 0.15 * Math.tan(pitchAngle) + rNy, D / 2 + 0.15 + rNz);
+  groups.roof.add(roofMesh);
+
+  /* ---- FLOOR OSB ---- */
+  const floorOsbOp = tr ? 0.80 : 1.0;
+  const floorOsbMat = new THREE.MeshLambertMaterial({ color: 0xc8a45a, transparent: tr, opacity: floorOsbOp });
+  const floorOsb = new THREE.Mesh(new THREE.BoxGeometry(L, 0.015, D), floorOsbMat);
+  floorOsb.position.set(L / 2, 0.1 + 0.015 / 2, D / 2); // sits on top of joists (~100mm)
+  groups.walls.add(floorOsb);
+
+  /* ---- ZONE DIVIDERS (floor tint + vertical) ---- */
+  // Floor tint per zone
+  const makeFloor = (x0, w, color) => {
+    const g = new THREE.PlaneGeometry(w, D);
+    const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(g, m);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(x0 + w/2, 0.005, D/2);
+    return mesh;
+  };
+  groups.zones.add(makeFloor(0, z1, COLORS.z1));
+  groups.zones.add(makeFloor(z1, z2w, COLORS.z2));
+  groups.zones.add(makeFloor(z1 + z2w, z3, COLORS.z3));
+  // Vertical zone divider edges as blue lines
+  [z1, z1 + z2w].forEach(xv => {
+    const ln = line(xv, 0.01, 0, xv, 0.01, D, COLORS.zoneDiv);
+    groups.zones.add(ln);
+    const ln2 = line(xv, heightAlongDepth(0), 0, xv, heightAlongDepth(D), D, COLORS.zoneDiv);
+    groups.zones.add(ln2);
+  });
+
+
+  /* ---- VENTILATION ---- */
+  // 1. Fascia board — vertical board closing the rafter tails at the front overhang
+  const fasciaH = 0.15;
+  const fasciaZ2 = D + 0.285; // just behind overhang tip
+  const fasciaMat = new THREE.MeshLambertMaterial({ color: 0x5c4020, transparent: tr, opacity: tr ? 0.90 : 1.0 });
+  const fasciaBoard = new THREE.Mesh(new THREE.BoxGeometry(L, fasciaH, 0.025), fasciaMat);
+  fasciaBoard.position.set(L / 2, HF - fasciaH / 2, fasciaZ2);
+  groups.frame.add(fasciaBoard);
+
+  // 2. Eave ventilation strip — dark mesh slot above front top plate (continuous air gap ~40 mm)
+  const eaveVentH = 0.042;
+  const eaveVentMat = new THREE.MeshLambertMaterial({ color: 0x111111, transparent: true, opacity: 0.78 });
+  const eaveVentStrip = new THREE.Mesh(new THREE.BoxGeometry(L, eaveVentH, 0.015), eaveVentMat);
+  eaveVentStrip.position.set(L / 2, HF + eaveVentH / 2, D + 0.008);
+  groups.walls.add(eaveVentStrip);
+
+  // Back-wall eave vent — same slot above back top plate
+  const backVentMat = new THREE.MeshLambertMaterial({ color: 0x111111, transparent: true, opacity: 0.65 });
+  const backVentStrip = new THREE.Mesh(new THREE.BoxGeometry(L, eaveVentH, 0.015), backVentMat);
+  backVentStrip.position.set(L / 2, HB + eaveVentH / 2, 0.01);
+  groups.frame.add(backVentStrip);
+
+  // 3. Gable vents — louvred panels near the back-top of each end wall
+  const gVentW = 0.28, gVentHgt = 0.16, gVentZpos = 0.35, gVentYpos = HB - 0.28;
+  const makeGableVent = (xPos) => {
+    const g = new THREE.Group();
+    // Wood surround
+    const surroundMat = new THREE.MeshLambertMaterial({ color: COLORS.cladding });
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.030, gVentHgt + 0.04, gVentW + 0.04), surroundMat));
+    // Dark mesh background
+    const meshMat = new THREE.MeshLambertMaterial({ color: 0x111111, transparent: true, opacity: 0.80 });
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.028, gVentHgt, gVentW), meshMat));
+    // Louvre slats — 5 thin horizontal bars angled ~15° for rain protection
+    const slatMat = new THREE.MeshLambertMaterial({ color: 0x7a5a35 });
+    const nSlats = 5;
+    for (let s = 0; s < nSlats; s++) {
+      const sy = -gVentHgt / 2 + (s + 0.5) * gVentHgt / nSlats;
+      const slat = new THREE.Mesh(new THREE.BoxGeometry(0.033, 0.020, gVentW - 0.04), slatMat);
+      slat.rotation.z = 0.26; // ~15°
+      slat.position.set(0, sy, 0);
+      g.add(slat);
+    }
+    g.position.set(xPos, gVentYpos, gVentZpos);
+    return g;
+  };
+  groups.walls.add(makeGableVent(-0.015));
+  groups.walls.add(makeGableVent(L + 0.015));
+
+  /* ---- SHELVES ---- */
+  const shelfMat = new THREE.MeshLambertMaterial({ color: COLORS.shelf });
+  state.shelves.forEach(sh => {
+    const zoneX0 = sh.zone === 1 ? 0 : sh.zone === 2 ? z1 : z1 + z2w;
+    const zoneW  = sh.zone === 1 ? z1 : sh.zone === 2 ? z2w : z3;
+    const thick = 0.025;
+    let dims, pos;
+    if (sh.wall === 'back') {
+      dims = [zoneW - 0.08, thick, sh.depth];
+      pos  = [zoneX0 + zoneW/2, sh.height, sh.depth/2 + 0.05];
+    } else if (sh.wall === 'left') {
+      dims = [sh.depth, thick, D - 0.1];
+      pos  = [zoneX0 + sh.depth/2 + 0.02, sh.height, D/2];
+    } else { // right
+      dims = [sh.depth, thick, D - 0.1];
+      pos  = [zoneX0 + zoneW - sh.depth/2 - 0.02, sh.height, D/2];
+    }
+    const m = new THREE.Mesh(new THREE.BoxGeometry(...dims), shelfMat);
+    m.position.set(...pos);
+    groups.shelves.add(m);
+    // bearers underneath
+    const bearerMat = new THREE.MeshLambertMaterial({ color: COLORS.frame });
+    if (sh.wall === 'back') {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(zoneW - 0.08, 0.04, 0.04), bearerMat);
+      b.position.set(zoneX0 + zoneW/2, sh.height - 0.03, 0.06);
+      groups.shelves.add(b);
+    }
+  });
+
+  /* ---- WATER TANK (zone 1) ---- */
+  const tankMat = new THREE.MeshLambertMaterial({ color: COLORS.tank, transparent: true, opacity: 0.85 });
+  const tankSize = Math.min(1.0, z1 - 0.1);
+  const tankDepth = Math.min(1.0, D - 0.15);
+  const tank = new THREE.Mesh(new THREE.BoxGeometry(tankSize, 1.15, tankDepth), tankMat);
+  tank.position.set(z1/2, 0.1 + 1.15/2, D/2);
+  groups.tank.add(tank);
+  // Cage frame on tank
+  const cageMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+  [ [0, 0], [0, 1.15], [0, 0.575] ].forEach(([_, y]) => {
+    const ring = new THREE.Mesh(new THREE.BoxGeometry(tankSize + 0.04, 0.02, tankDepth + 0.04), cageMat);
+    ring.position.set(z1/2, 0.1 + y, D/2);
+    groups.tank.add(ring);
+  });
+
+  /* ---- DIMENSIONS (simple lines + sprite labels) ---- */
+  const dimY = -0.15;
+  groups.dims.add(line(0, dimY, -0.3, L, dimY, -0.3, COLORS.dim));
+  groups.dims.add(line(0, dimY, -0.35, 0, dimY, -0.25, COLORS.dim));
+  groups.dims.add(line(L, dimY, -0.35, L, dimY, -0.25, COLORS.dim));
+  groups.dims.add(line(-0.3, dimY, 0, -0.3, dimY, D, COLORS.dim));
+  groups.dims.add(line(-0.35, dimY, 0, -0.25, dimY, 0, COLORS.dim));
+  groups.dims.add(line(-0.35, dimY, D, -0.25, dimY, D, COLORS.dim));
+
+  // Apply visibility
+  for (const k of Object.keys(groups)) {
+    groups[k].visible = !!state.layers[k];
+    shedGroup.add(groups[k]);
+  }
+}
+
+/* ===== Readouts ===== */
+function updateReadouts() {
+  const rise = state.back - state.front;
+  const run = state.depth;
+  const deg = Math.atan(rise / run) * 180 / Math.PI;
+  const ratio = rise > 0.001 ? `1:${(run / rise).toFixed(1)}` : '—';
+  const rafter = Math.sqrt(run*run + rise*rise) + 0.3;
+  document.getElementById('rd-pitch').textContent = `${deg.toFixed(1)}°`;
+  document.getElementById('rd-ratio').textContent = ratio;
+  document.getElementById('rd-rafter').textContent = rafter.toFixed(2);
+}
+
+/* ===== UI wiring ===== */
+function wireSliders() {
+  const bind = (id, prop, fmt) => {
+    const el = document.getElementById(id);
+    const val = document.getElementById('v-' + id.split('-')[1]);
+    const update = () => {
+      state[prop] = parseFloat(el.value);
+      val.textContent = fmt(state[prop]);
+      enforceZones();
+      rebuildAll();
+    };
+    el.addEventListener('input', update);
+  };
+  bind('s-length', 'length', v => `${v.toFixed(2)} m`);
+  bind('s-depth', 'depth', v => `${v.toFixed(2)} m`);
+  bind('s-back', 'back', v => `${v.toFixed(2)} m`);
+  bind('s-front', 'front', v => `${v.toFixed(2)} m`);
+  bind('s-z1', 'z1', v => `${v.toFixed(2)} m`);
+  bind('s-z3', 'z3', v => `${v.toFixed(2)} m`);
+
+  // Enforce front <= back
+  document.getElementById('s-front').addEventListener('input', () => {
+    if (state.front > state.back - 0.1) {
+      state.back = state.front + 0.1;
+      document.getElementById('s-back').value = state.back.toFixed(1);
+      document.getElementById('v-back').textContent = `${state.back.toFixed(2)} m`;
+      rebuildAll();
+    }
+  });
+  document.getElementById('s-back').addEventListener('input', () => {
+    if (state.back < state.front + 0.1) {
+      state.front = state.back - 0.1;
+      document.getElementById('s-front').value = state.front.toFixed(1);
+      document.getElementById('v-front').textContent = `${state.front.toFixed(2)} m`;
+      rebuildAll();
+    }
+  });
+}
+
+function enforceZones() {
+  // Clamp z1+z3 <= length - 0.8 (min zone 2 = 0.8m)
+  const minZ2 = 0.8;
+  if (state.z1 + state.z3 > state.length - minZ2) {
+    // reduce z3 first
+    state.z3 = Math.max(1.0, state.length - state.z1 - minZ2);
+    document.getElementById('s-z3').value = state.z3.toFixed(2);
+    document.getElementById('v-z3').textContent = `${state.z3.toFixed(2)} m`;
+    if (state.z1 + state.z3 > state.length - minZ2) {
+      state.z1 = Math.max(0.8, state.length - state.z3 - minZ2);
+      document.getElementById('s-z1').value = state.z1.toFixed(2);
+      document.getElementById('v-z1').textContent = `${state.z1.toFixed(2)} m`;
+    }
+  }
+  document.getElementById('v-z2').textContent = `${z2().toFixed(2)} m`;
+}
+
+function wireLayers() {
+  const ids = ['frame','walls','roof','zones','dims','shelves','tank','doors'];
+  ids.forEach(k => {
+    const el = document.getElementById('t-' + k);
+    el.addEventListener('change', () => {
+      state.layers[k] = el.checked;
+      rebuildAll();
+    });
+  });
+}
+
+function wireOptions() {
+  document.querySelectorAll('input[name="foundation"]').forEach(r => {
+    r.addEventListener('change', () => { state.foundation = r.value; renderMaterials(); });
+  });
+  document.querySelectorAll('input[name="roofing"]').forEach(r => {
+    r.addEventListener('change', () => { state.roofing = r.value; renderMaterials(); });
+  });
+}
+
+function wireTabs() {
+  document.querySelectorAll('.tabs button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById('tab-' + b.dataset.tab).classList.remove('hidden');
+    });
+  });
+}
+
+function wireShelfEditor() {
+  document.getElementById('btn-add-shelf').addEventListener('click', () => {
+    const sh = {
+      id: state.nextShelfId++,
+      zone: parseInt(document.getElementById('new-shelf-zone').value, 10),
+      wall: document.getElementById('new-shelf-wall').value,
+      height: parseFloat(document.getElementById('new-shelf-h').value) || 1.0,
+      depth: parseFloat(document.getElementById('new-shelf-d').value) || 0.3,
+      label: document.getElementById('new-shelf-label').value || 'Police'
+    };
+    state.shelves.push(sh);
+    rebuildAll();
+  });
+  renderShelvesList();
+}
+
+function renderShelvesList() {
+  const cont = document.getElementById('shelves-list');
+  cont.innerHTML = '';
+  if (state.shelves.length === 0) {
+    cont.innerHTML = '<div style="font-size:12px; color:var(--text-2)">Zatím žádné police.</div>';
+    return;
+  }
+  state.shelves.forEach(sh => {
+    const row = document.createElement('div');
+    row.className = 'shelf-row';
+    const wallNames = { back: 'zadní', left: 'levá', right: 'pravá' };
+    row.innerHTML = `
+      <div>
+        <div><strong>${sh.label}</strong></div>
+        <div class="meta">Z${sh.zone} · ${wallNames[sh.wall]} · v ${sh.height.toFixed(2)} m · hl ${sh.depth.toFixed(2)} m</div>
+      </div>
+      <button data-del="${sh.id}">×</button>
+    `;
+    row.querySelector('button').addEventListener('click', () => {
+      state.shelves = state.shelves.filter(s => s.id !== sh.id);
+      rebuildAll();
+    });
+    cont.appendChild(row);
+  });
+}
+
+/* ===== SVG 2D drawings ===== */
+function drawPlan() {
+  const svg = document.getElementById('svg-plan');
+  const W = 900, H = 420;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const margin = 60;
+  const plotW = W - 2 * margin, plotH = H - 2 * margin;
+  const s = Math.min(plotW / state.length, plotH / state.depth);
+  const ox = margin + (plotW - state.length * s) / 2;
+  const oy = margin + (plotH - state.depth * s) / 2;
+  const xP = x => ox + x * s;
+  const yP = z => oy + z * s; // z=0 back wall at top
+
+  let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="#fafaf5"/>`;
+  // Zones (colour fills)
+  const zones = [
+    { x0: 0, w: state.z1, c: '#c8dff5', label: 'Zóna 1 — Nádrž' },
+    { x0: state.z1, w: z2(), c: '#fde8c8', label: 'Zóna 2 — Sekačka + nářadí' },
+    { x0: state.z1 + z2(), w: state.z3, c: '#e0e0e0', label: 'Zóna 3 — Otevřené úložiště' }
+  ];
+  zones.forEach(z => {
+    out += `<rect x="${xP(z.x0)}" y="${yP(0)}" width="${z.w * s}" height="${state.depth * s}" fill="${z.c}" stroke="#1a6bbf" stroke-width="1"/>`;
+    out += `<text x="${xP(z.x0 + z.w/2)}" y="${yP(state.depth/2)}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#333">${z.label}</text>`;
+    out += `<text x="${xP(z.x0 + z.w/2)}" y="${yP(state.depth/2) + 16}" text-anchor="middle" font-size="11" fill="#666">${z.w.toFixed(2)} m</text>`;
+  });
+  // Outer outline
+  out += `<rect x="${xP(0)}" y="${yP(0)}" width="${state.length * s}" height="${state.depth * s}" fill="none" stroke="#2a2a2a" stroke-width="2"/>`;
+  // Back wall (top edge — solid double line)
+  out += `<line x1="${xP(0)}" y1="${yP(0) - 4}" x2="${xP(state.length)}" y2="${yP(0) - 4}" stroke="#2a2a2a" stroke-width="1"/>`;
+  // Front wall only zones 1+2 solid; zone 3 opening
+  const frontEnd = state.z1 + z2();
+  out += `<line x1="${xP(0)}" y1="${yP(state.depth) + 4}" x2="${xP(frontEnd)}" y2="${yP(state.depth) + 4}" stroke="#2a2a2a" stroke-width="1"/>`;
+  out += `<line x1="${xP(frontEnd)}" y1="${yP(state.depth) + 4}" x2="${xP(state.length)}" y2="${yP(state.depth) + 4}" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="6 4"/>`;
+
+  // Water tank footprint (zone 1)
+  const tankW = Math.min(1.0, state.z1 - 0.1);
+  const tankD = Math.min(1.0, state.depth - 0.15);
+  const tcx = state.z1/2 - tankW/2, tcz = state.depth/2 - tankD/2;
+  out += `<rect x="${xP(tcx)}" y="${yP(tcz)}" width="${tankW * s}" height="${tankD * s}" fill="#3060a0" fill-opacity="0.25" stroke="#1a4a80" stroke-width="1"/>`;
+  out += `<text x="${xP(state.z1/2)}" y="${yP(state.depth/2) - 25}" text-anchor="middle" font-size="10" fill="#1a4a80">IBC nádrž 2 m³</text>`;
+
+  // Zone 1 — removable panel full zone width
+  const z1PanelW = state.z1 - 0.05;
+  out += `<rect x="${xP(0.05)}" y="${yP(state.depth) - 4}" width="${z1PanelW * s}" height="8" fill="#c8a45a" stroke="#6a5030" stroke-width="1"/>`;
+  out += `<text x="${xP(state.z1/2)}" y="${yP(state.depth) + 16}" text-anchor="middle" font-size="9" fill="#6a5030">panel</text>`;
+
+  // Zone 2 double doors — match framing: left solid + 1.6m doors + 0.4m right solid
+  const z2RightSolid2 = 0.4;
+  const z2DoorW2 = Math.min(1.6, z2() - 0.5 - z2RightSolid2);
+  const z2SlideW2 = z2() - z2DoorW2 - z2RightSolid2;
+  const z2LeafW2 = z2DoorW2 / 2;
+  const dLHingeX = state.z1 + z2SlideW2 + 0.05;      // left leaf hinge (at mullion)
+  const dRHingeX = dLHingeX + z2DoorW2 - 0.05;       // right leaf hinge
+  // Left leaf: hinge left, sweeps outward
+  out += `<line x1="${xP(dLHingeX)}" y1="${yP(state.depth)}" x2="${xP(dLHingeX + z2LeafW2)}" y2="${yP(state.depth)}" stroke="#888" stroke-width="1.5" stroke-dasharray="4 2"/>`;
+  out += `<path d="M ${xP(dLHingeX + z2LeafW2)} ${yP(state.depth)} A ${z2LeafW2 * s} ${z2LeafW2 * s} 0 0 0 ${xP(dLHingeX)} ${yP(state.depth + z2LeafW2)}" fill="none" stroke="#aaa" stroke-width="1" stroke-dasharray="3 3"/>`;
+  // Right leaf: hinge right, sweeps outward
+  out += `<line x1="${xP(dRHingeX - z2LeafW2)}" y1="${yP(state.depth)}" x2="${xP(dRHingeX)}" y2="${yP(state.depth)}" stroke="#888" stroke-width="1.5" stroke-dasharray="4 2"/>`;
+  out += `<path d="M ${xP(dRHingeX - z2LeafW2)} ${yP(state.depth)} A ${z2LeafW2 * s} ${z2LeafW2 * s} 0 0 1 ${xP(dRHingeX)} ${yP(state.depth + z2LeafW2)}" fill="none" stroke="#aaa" stroke-width="1" stroke-dasharray="3 3"/>`;
+
+  // Shelves in plan — show as lines along their wall
+  state.shelves.forEach(sh => {
+    const zoneX0 = sh.zone === 1 ? 0 : sh.zone === 2 ? state.z1 : state.z1 + z2();
+    const zoneW  = sh.zone === 1 ? state.z1 : sh.zone === 2 ? z2() : state.z3;
+    if (sh.wall === 'back') {
+      out += `<rect x="${xP(zoneX0 + 0.04)}" y="${yP(0)}" width="${(zoneW - 0.08) * s}" height="${sh.depth * s}" fill="#9a7a4f" fill-opacity="0.35" stroke="#6a5030" stroke-width="0.5"/>`;
+    } else if (sh.wall === 'left') {
+      out += `<rect x="${xP(zoneX0 + 0.02)}" y="${yP(0.05)}" width="${sh.depth * s}" height="${(state.depth - 0.1) * s}" fill="#9a7a4f" fill-opacity="0.35" stroke="#6a5030" stroke-width="0.5"/>`;
+    } else {
+      out += `<rect x="${xP(zoneX0 + zoneW - sh.depth - 0.02)}" y="${yP(0.05)}" width="${sh.depth * s}" height="${(state.depth - 0.1) * s}" fill="#9a7a4f" fill-opacity="0.35" stroke="#6a5030" stroke-width="0.5"/>`;
+    }
+  });
+
+  // Dimensions outside
+  const dy = yP(state.depth) + 30;
+  out += `<line x1="${xP(0)}" y1="${dy}" x2="${xP(state.length)}" y2="${dy}" stroke="#888880" stroke-width="1"/>`;
+  out += `<line x1="${xP(0)}" y1="${dy - 5}" x2="${xP(0)}" y2="${dy + 5}" stroke="#888880" stroke-width="1"/>`;
+  out += `<line x1="${xP(state.length)}" y1="${dy - 5}" x2="${xP(state.length)}" y2="${dy + 5}" stroke="#888880" stroke-width="1"/>`;
+  out += `<text x="${xP(state.length/2)}" y="${dy - 6}" text-anchor="middle" font-size="12" fill="#555">${state.length.toFixed(2)} m</text>`;
+
+  const dx = xP(state.length) + 30;
+  out += `<line x1="${dx}" y1="${yP(0)}" x2="${dx}" y2="${yP(state.depth)}" stroke="#888880" stroke-width="1"/>`;
+  out += `<text x="${dx + 6}" y="${yP(state.depth/2)}" font-size="12" fill="#555" dominant-baseline="middle">${state.depth.toFixed(2)} m</text>`;
+
+  out += `<text x="${xP(0)}" y="${yP(0) - 20}" font-size="11" fill="#666">zadní stěna (dům / plot)</text>`;
+  out += `<text x="${xP(0)}" y="${yP(state.depth) + 55}" font-size="11" fill="#666">čelní stěna (zahrada)</text>`;
+
+  svg.innerHTML = out;
+}
+
+function drawFront() {
+  const svg = document.getElementById('svg-front');
+  const W = 900, H = 360;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const margin = 60;
+  const plotW = W - 2 * margin, plotH = H - 2 * margin - 20;
+  const roofExtra = (state.back - state.front);
+  const scaleX = plotW / state.length;
+  const scaleY = plotH / (state.back + 0.3);
+  const s = Math.min(scaleX, scaleY);
+  const ox = margin + (plotW - state.length * s) / 2;
+  const baseY = margin + plotH; // ground line
+  const xP = x => ox + x * s;
+  const yP = y => baseY - y * s;
+
+  let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="#fafaf5"/>`;
+  // Zone fills on front face
+  const zones = [
+    { x0: 0, w: state.z1, c: '#c8dff5' },
+    { x0: state.z1, w: z2(), c: '#fde8c8' },
+    { x0: state.z1 + z2(), w: state.z3, c: '#e0e0e0' }
+  ];
+  zones.forEach(z => {
+    out += `<rect x="${xP(z.x0)}" y="${yP(state.front)}" width="${z.w * s}" height="${state.front * s}" fill="${z.c}"/>`;
+  });
+  // Front wall outline (zones 1+2)
+  const frontEnd = state.z1 + z2();
+  out += `<rect x="${xP(0)}" y="${yP(state.front)}" width="${frontEnd * s}" height="${state.front * s}" fill="none" stroke="#2a2a2a" stroke-width="2"/>`;
+  // Zone 3 open bay (dashed sides)
+  out += `<line x1="${xP(frontEnd)}" y1="${yP(state.front)}" x2="${xP(frontEnd)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="5 4"/>`;
+  out += `<line x1="${xP(state.length)}" y1="${yP(state.front)}" x2="${xP(state.length)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="2"/>`;
+  // Ground
+  out += `<line x1="${xP(-0.1)}" y1="${yP(0)}" x2="${xP(state.length + 0.1)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="2"/>`;
+
+  // Roof line (front elevation sees edge of roof across length, overhang above)
+  out += `<line x1="${xP(-0.15)}" y1="${yP(state.front + 0.15)}" x2="${xP(state.length + 0.15)}" y2="${yP(state.front + 0.15)}" stroke="#8b7355" stroke-width="3"/>`;
+
+  // Zone 1 door
+  const doorW1 = 0.7, doorH1 = 1.8;
+  const d1x = state.z1 - 0.15 - doorW1;
+  out += `<rect x="${xP(d1x)}" y="${yP(doorH1)}" width="${doorW1 * s}" height="${doorH1 * s}" fill="none" stroke="#444" stroke-width="1"/>`;
+  out += `<circle cx="${xP(d1x + doorW1 - 0.08)}" cy="${yP(doorH1/2)}" r="3" fill="#444"/>`;
+  out += `<text x="${xP(d1x + doorW1/2)}" y="${yP(doorH1) - 8}" text-anchor="middle" font-size="10" fill="#444">přístup k nádrži</text>`;
+
+  // Zone 2 double doors
+  const zOpening = z2() * 0.9, leaf = zOpening / 2;
+  const d2x = state.z1 + (z2() - zOpening) / 2;
+  out += `<rect x="${xP(d2x)}" y="${yP(state.front - 0.05)}" width="${leaf * s}" height="${(state.front - 0.1) * s}" fill="none" stroke="#444" stroke-width="1"/>`;
+  out += `<rect x="${xP(d2x + leaf)}" y="${yP(state.front - 0.05)}" width="${leaf * s}" height="${(state.front - 0.1) * s}" fill="none" stroke="#444" stroke-width="1"/>`;
+  out += `<circle cx="${xP(d2x + leaf - 0.06)}" cy="${yP(state.front/2)}" r="3" fill="#444"/>`;
+  out += `<circle cx="${xP(d2x + leaf + 0.06)}" cy="${yP(state.front/2)}" r="3" fill="#444"/>`;
+  out += `<text x="${xP(d2x + zOpening/2)}" y="${yP(state.front) - 8}" text-anchor="middle" font-size="10" fill="#444">dvojitá vrata ${zOpening.toFixed(2)} m</text>`;
+
+  // Zone 3 open bay — show interior shelves
+  state.shelves.filter(sh => sh.zone === 3 && sh.wall === 'back').forEach(sh => {
+    out += `<line x1="${xP(state.z1 + z2() + 0.05)}" y1="${yP(sh.height)}" x2="${xP(state.length - 0.05)}" y2="${yP(sh.height)}" stroke="#9a7a4f" stroke-width="2"/>`;
+    out += `<text x="${xP(state.z1 + z2() + state.z3/2)}" y="${yP(sh.height) - 2}" text-anchor="middle" font-size="9" fill="#6a5030">${sh.label}</text>`;
+  });
+
+  // Dimension — total width
+  const dy = yP(0) + 30;
+  out += `<line x1="${xP(0)}" y1="${dy}" x2="${xP(state.length)}" y2="${dy}" stroke="#888880" stroke-width="1"/>`;
+  out += `<line x1="${xP(0)}" y1="${dy - 4}" x2="${xP(0)}" y2="${dy + 4}" stroke="#888880"/>`;
+  out += `<line x1="${xP(state.length)}" y1="${dy - 4}" x2="${xP(state.length)}" y2="${dy + 4}" stroke="#888880"/>`;
+  out += `<text x="${xP(state.length/2)}" y="${dy - 6}" text-anchor="middle" font-size="12" fill="#555">${state.length.toFixed(2)} m</text>`;
+  // Zone widths inside
+  zones.forEach(z => {
+    out += `<text x="${xP(z.x0 + z.w/2)}" y="${yP(0) + 16}" text-anchor="middle" font-size="11" fill="#666">${z.w.toFixed(2)} m</text>`;
+  });
+  // Height
+  const dxH = xP(state.length) + 25;
+  out += `<line x1="${dxH}" y1="${yP(0)}" x2="${dxH}" y2="${yP(state.front)}" stroke="#888880"/>`;
+  out += `<text x="${dxH + 6}" y="${yP(state.front/2)}" font-size="11" fill="#555" dominant-baseline="middle">${state.front.toFixed(2)} m</text>`;
+
+  svg.innerHTML = out;
+}
+
+function drawSide() {
+  const svg = document.getElementById('svg-side');
+  const W = 600, H = 400;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const margin = 60;
+  const plotW = W - 2 * margin, plotH = H - 2 * margin - 20;
+  const s = Math.min(plotW / state.depth, plotH / (state.back + 0.3));
+  const ox = margin + (plotW - state.depth * s) / 2;
+  const baseY = margin + plotH;
+  const xP = z => ox + z * s;
+  const yP = y => baseY - y * s;
+
+  let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="#fafaf5"/>`;
+  // Zone 2 fill (section is through zone 2)
+  out += `<polygon points="${xP(0)},${yP(0)} ${xP(state.depth)},${yP(0)} ${xP(state.depth)},${yP(state.front)} ${xP(0)},${yP(state.back)}" fill="#fde8c8"/>`;
+  // Outline
+  out += `<polygon points="${xP(0)},${yP(0)} ${xP(state.depth)},${yP(0)} ${xP(state.depth)},${yP(state.front)} ${xP(0)},${yP(state.back)}" fill="none" stroke="#2a2a2a" stroke-width="2"/>`;
+  // Roof with overhang
+  out += `<line x1="${xP(0)}" y1="${yP(state.back + 0.05)}" x2="${xP(state.depth + 0.3)}" y2="${yP(state.front - 0.3 * (state.back - state.front)/state.depth + 0.05)}" stroke="#8b7355" stroke-width="3"/>`;
+  // Ground
+  out += `<line x1="${xP(-0.2)}" y1="${yP(0)}" x2="${xP(state.depth + 0.4)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="2"/>`;
+  // Interior shelf in zone 2 at ~1.6
+  const topShelf = state.shelves.find(sh => sh.zone === 2 && sh.wall === 'back');
+  const sy = topShelf ? topShelf.height : 1.6;
+  out += `<line x1="${xP(0.05)}" y1="${yP(sy)}" x2="${xP(0.05 + (topShelf?topShelf.depth:0.3))}" y2="${yP(sy)}" stroke="#9a7a4f" stroke-width="3"/>`;
+  out += `<text x="${xP(0.1)}" y="${yP(sy) - 5}" font-size="10" fill="#6a5030">police v ${sy.toFixed(2)} m</text>`;
+  // Mower silhouette (0.5m long, at the front area)
+  out += `<rect x="${xP(state.depth - 0.7)}" y="${yP(0.35)}" width="${0.5 * s}" height="${0.35 * s}" fill="#3a3a3a" fill-opacity="0.65" stroke="#2a2a2a"/>`;
+  out += `<circle cx="${xP(state.depth - 0.6)}" cy="${yP(0.08)}" r="${0.08 * s}" fill="#222"/>`;
+  out += `<circle cx="${xP(state.depth - 0.3)}" cy="${yP(0.08)}" r="${0.08 * s}" fill="#222"/>`;
+  out += `<text x="${xP(state.depth - 0.45)}" y="${yP(0.35) - 4}" text-anchor="middle" font-size="10" fill="#333">sekačka</text>`;
+
+  // Dimensions
+  const dxl = xP(0) - 25;
+  out += `<line x1="${dxl}" y1="${yP(0)}" x2="${dxl}" y2="${yP(state.back)}" stroke="#888880"/>`;
+  out += `<text x="${dxl - 6}" y="${yP(state.back/2)}" text-anchor="end" font-size="11" fill="#555" dominant-baseline="middle">${state.back.toFixed(2)} m</text>`;
+  const dxr = xP(state.depth) + 25;
+  out += `<line x1="${dxr}" y1="${yP(0)}" x2="${dxr}" y2="${yP(state.front)}" stroke="#888880"/>`;
+  out += `<text x="${dxr + 6}" y="${yP(state.front/2)}" font-size="11" fill="#555" dominant-baseline="middle">${state.front.toFixed(2)} m</text>`;
+  const dy = yP(0) + 28;
+  out += `<line x1="${xP(0)}" y1="${dy}" x2="${xP(state.depth)}" y2="${dy}" stroke="#888880"/>`;
+  out += `<text x="${xP(state.depth/2)}" y="${dy - 6}" text-anchor="middle" font-size="11" fill="#555">${state.depth.toFixed(2)} m</text>`;
+
+  const rise = state.back - state.front;
+  const deg = Math.atan(rise / state.depth) * 180 / Math.PI;
+  out += `<text x="${xP(state.depth/2)}" y="${yP((state.back + state.front)/2)}" text-anchor="middle" font-size="11" fill="#8b6040">sklon ${deg.toFixed(1)}°</text>`;
+
+  svg.innerHTML = out;
+}
+
+function drawFraming() {
+  const svg = document.getElementById('svg-framing');
+  const W = 900;
+  const marginTop = 50, marginSide = 70, marginBottom = 60;
+  const plotW = W - 2 * marginSide;
+  // Scale to fill width, then set height from content
+  const s = plotW / state.length;
+  const contentH = state.back * s;
+  const H = Math.round(marginTop + contentH + marginBottom);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const ox = marginSide;
+  const baseY = marginTop + contentH;
+  const xP = x => ox + x * s;
+  const yP = y => baseY - y * s;
+
+  let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="#fafaf5"/>`;
+  // Outline
+  out += `<rect x="${xP(0)}" y="${yP(state.back)}" width="${state.length * s}" height="${state.back * s}" fill="none" stroke="#ccc"/>`;
+  // Back wall studs at 600mm o.c.
+  const spacing = 0.6;
+  const n = Math.ceil(state.length / spacing) + 1;
+  for (let i = 0; i < n; i++) {
+    const x = Math.min(i * spacing, state.length);
+    out += `<line x1="${xP(x)}" y1="${yP(0)}" x2="${xP(x)}" y2="${yP(state.back)}" stroke="#2a2a2a" stroke-width="2"/>`;
+  }
+  // Top and bottom plates (back wall)
+  out += `<line x1="${xP(0)}" y1="${yP(state.back)}" x2="${xP(state.length)}" y2="${yP(state.back)}" stroke="#2a2a2a" stroke-width="4"/>`;
+  out += `<line x1="${xP(0)}" y1="${yP(0)}" x2="${xP(state.length)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="4"/>`;
+  // Zone dividers
+  [state.z1, state.z1 + z2()].forEach(xv => {
+    out += `<line x1="${xP(xv)}" y1="${yP(0)}" x2="${xP(xv)}" y2="${yP(state.back)}" stroke="#1a6bbf" stroke-width="2" stroke-dasharray="4 4"/>`;
+  });
+  // Door header for zone 2
+  out += `<line x1="${xP(state.z1 + 0.05)}" y1="${yP(state.front - 0.1)}" x2="${xP(state.z1 + z2() - 0.05)}" y2="${yP(state.front - 0.1)}" stroke="#a03030" stroke-width="4"/>`;
+  out += `<text x="${xP(state.z1 + z2()/2)}" y="${yP(state.front - 0.1) - 6}" text-anchor="middle" font-size="11" fill="#a03030">překlad dveří 50×150</text>`;
+
+  // Label
+  out += `<text x="${xP(state.length/2)}" y="${yP(state.back) - 12}" text-anchor="middle" font-size="13" fill="#333">Rám zadní stěny — sloupky 50×100 @ 600 mm o.c.</text>`;
+  out += `<text x="${xP(0)}" y="${yP(0) + 22}" font-size="11" fill="#555">${n} sloupků · dolní/horní pásnice 50×100 · rohy zdvojené</text>`;
+  out += `<text x="${xP(state.length)}" y="${yP(0) + 22}" text-anchor="end" font-size="11" fill="#555">podlahové trámy 50×100 @ 500 mm · krokve 50×100 @ 500 mm</text>`;
+
+  svg.innerHTML = out;
+}
+
+/* ===== Materials calculator ===== */
+function calcMaterials() {
+  const L = state.length, D = state.depth, HB = state.back, HF = state.front;
+  const z1 = state.z1, z3 = state.z3, z2w = z2();
+  const frontEnd = z1 + z2w;
+  const overage = 1.10;
+  const studSpacing = 0.6, joistSpacing = 0.5, rafterSpacing = 0.5;
+
+  const joistCount = Math.ceil(L / joistSpacing) + 1;
+  const floorJoistsM = joistCount * D * overage;
+  const rimJoistsM = 2 * (L * 2) * overage; // doubled front+back
+
+  const backStuds = (Math.ceil(L / studSpacing) + 1) * HB;
+  const frontStuds = (Math.ceil(frontEnd / studSpacing) + 1) * HF;
+  const leftStuds = (Math.ceil(D / studSpacing) + 1) * ((HB + HF) / 2);
+  const rightStuds = (Math.ceil(D / studSpacing) + 1) * ((HB + HF) / 2);
+  const wallStudsM = (backStuds + frontStuds + leftStuds + rightStuds) * overage;
+
+  const platesM = (L * 2 + L + frontEnd * 2 + D * 2 + D * 2) * overage; // rough: top plates back (double), bottom back, top front (double), bottom front, two sides
+
+  const rafterLen = Math.sqrt(D*D + (HB-HF)*(HB-HF)) + 0.3;
+  const rafterCount = Math.ceil(L / rafterSpacing) + 1;
+  const raftersM = rafterCount * rafterLen * overage;
+
+  const partStudsM = ((Math.ceil(D / 0.6) + 1) * (HB + HF) / 2 * 2) * overage; // two partitions
+
+  const roofArea = rafterLen * L;
+  const roofSheets = Math.ceil(roofArea / (1.25 * 2.5));
+  const wallAreaApprox = 2 * L * HB + 2 * D * ((HB+HF)/2) + frontEnd * HF;
+  const wallSheets = Math.ceil(wallAreaApprox / (1.25 * 2.5));
+
+  const claddingArea = wallAreaApprox * 1.10;
+  const roofingArea = roofArea * 1.15;
+
+  const screwsKg = Math.ceil(((floorJoistsM + rimJoistsM + wallStudsM + raftersM + platesM) / 5) * 0.1);
+  const brackets = rafterCount * 2 + joistCount * 2 + 20;
+
+  const foundationNote = {
+    pads: 'Betonové patky ~800 mm',
+    strip: 'Pásový základ (beton)',
+    gravel: 'Štěrkové lože + impreg. trámy'
+  }[state.foundation];
+
+  const roofingName = {
+    epdm: 'EPDM fólie',
+    bitumen: 'Asfaltové šindele',
+    metal: 'Trapézový plech'
+  }[state.roofing];
+
+  return [
+    ['Podlahové trámy', '50×100 mm', floorJoistsM.toFixed(1), 'm', 'Impregnované'],
+    ['Obvodové trámy', '50×100 mm (zdvojené)', rimJoistsM.toFixed(1), 'm', 'Impregnované'],
+    ['Sloupky stěn', '50×100 mm', wallStudsM.toFixed(1), 'm', '—'],
+    ['Pásnice (horní/dolní)', '50×100 mm', platesM.toFixed(1), 'm', 'Dolní impregnované'],
+    ['Krokve', '50×100 mm', raftersM.toFixed(1), 'm', `Délka ${rafterLen.toFixed(2)} m × ${rafterCount} ks`],
+    ['Sloupky příček', '45×70 mm', partStudsM.toFixed(1), 'm', 'Mezi zónami'],
+    ['Překlad dveří', '50×150 mm', (z2w + 0.3).toFixed(1), 'm', 'Zóna 2'],
+    ['OSB deska (střecha)', '15 mm, 1250×2500 mm', roofSheets, 'ks', '—'],
+    ['OSB deska (stěny)', '12 mm, 1250×2500 mm', wallSheets, 'ks', 'Volitelné'],
+    ['Palubky / obklad', '20 mm, 100–150 mm', claddingArea.toFixed(1), 'm²', '+10 % prořez'],
+    ['Krytina', roofingName, roofingArea.toFixed(1), 'm²', '+15 % prořez'],
+    ['Vruty 4.5×70', 'Galvanizované', screwsKg, 'kg', '—'],
+    ['Úhelníky', '90° galv. 40×40×40', brackets, 'ks', '—'],
+    ['Třmeny', 'Pro 50×100', joistCount + rafterCount, 'ks', '—'],
+    ['Základy', foundationNote, '—', '—', '—']
+  ];
+}
+
+function renderMaterials() {
+  const cont = document.getElementById('materials-tbl');
+  const rows = calcMaterials();
+  let out = `<table class="mat"><thead><tr>
+    <th>Položka</th><th>Specifikace</th><th class="num">Množství</th><th>Jednotka</th><th>Poznámka</th>
+    </tr></thead><tbody>`;
+  rows.forEach(r => {
+    out += `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="num">${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td></tr>`;
+  });
+  out += `</tbody></table>`;
+  out += `<p style="margin-top:10px; font-size:12px; color:var(--text-2)">Množství zahrnuje 10 % rezervu na prořez u dřeva, 10 % u obkladu, 15 % u krytiny.</p>`;
+  cont.innerHTML = out;
+}
+
+/* ===== Print / Copy ===== */
+function setupActions() {
+  const btnTr = document.getElementById('btn-transparent');
+  btnTr.addEventListener('click', () => {
+    state.transparent = !state.transparent;
+    btnTr.textContent = `Průhlednost: ${state.transparent ? 'ZAP' : 'VYP'}`;
+    btnTr.style.borderColor = state.transparent ? '' : 'var(--accent)';
+    btnTr.style.color = state.transparent ? '' : 'var(--accent)';
+    rebuildAll();
+  });
+
+  document.getElementById('btn-print').addEventListener('click', () => {
+    // make sure all tab panels are visible for printing
+    window.print();
+  });
+  document.getElementById('btn-copy').addEventListener('click', () => {
+    const rise = state.back - state.front;
+    const deg = Math.atan(rise / state.depth) * 180 / Math.PI;
+    const rows = calcMaterials();
+    const lines = [
+      'ZAHRADNÍ DOMEK — SOUHRN',
+      '========================',
+      `Délka:         ${state.length.toFixed(2)} m`,
+      `Hloubka:       ${state.depth.toFixed(2)} m`,
+      `Zadní výška:   ${state.back.toFixed(2)} m`,
+      `Přední výška:  ${state.front.toFixed(2)} m`,
+      `Sklon střechy: ${deg.toFixed(1)}° (1:${(state.depth/Math.max(rise,0.01)).toFixed(1)})`,
+      `Zóna 1: ${state.z1.toFixed(2)} m · Zóna 2: ${z2().toFixed(2)} m · Zóna 3: ${state.z3.toFixed(2)} m`,
+      `Základy: ${state.foundation}    Krytina: ${state.roofing}`,
+      '',
+      'POLICE:',
+      ...state.shelves.map(s => `  Z${s.zone} / ${s.wall}: ${s.label} (v ${s.height} m, hl ${s.depth} m)`),
+      '',
+      'VÝKAZ MATERIÁLU:',
+      ...rows.map(r => `  ${r[0]} — ${r[1]}: ${r[2]} ${r[3]} (${r[4]})`)
+    ];
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      const btn = document.getElementById('btn-copy');
+      const old = btn.textContent;
+      btn.textContent = 'Zkopírováno ✓';
+      setTimeout(() => btn.textContent = old, 1500);
+    });
+  });
+}
+
+/* ===== Rebuild pipeline ===== */
+function rebuildAll() {
+  enforceZones();
+  buildShed();
+  updateReadouts();
+  drawPlan(); drawFront(); drawSide(); drawFraming();
+  renderMaterials();
+  renderShelvesList();
+}
+
+/* ===== Init ===== */
+function initApp() {
+  initThree();
+  wireSliders();
+  wireLayers();
+  wireOptions();
+  wireTabs();
+  wireShelfEditor();
+  setupActions();
+  rebuildAll();
+}
+</script>
+</body>
+</html>
