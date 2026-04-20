@@ -516,6 +516,17 @@ function buildShed() {
   for (let sx = z2RightKingX + studSpacing; sx < z1 + z2w - bw * 1.5; sx += studSpacing) fStud(sx, HF);
   // No separate header — top plate is doubled 50×150 mm across full zone 2, carries the load
   fHBeam(z1 + z2w / 2, HF - 0.075, z2w, 0.15);
+  // Cripple studs above door rough opening (fill gap from door top to underside of doubled top plate)
+  const crippleH = (HF - 0.15) - z2DH;
+  if (crippleH > 0.01) {
+    const nCripple = Math.max(1, Math.round((z2JRx - z2JLx) / studSpacing));
+    for (let ci = 1; ci < nCripple; ci++) {
+      const cx = z2JLx + ci * (z2JRx - z2JLx) / nCripple;
+      const c = beam(bw * 0.85, crippleH, bw, COLORS.frame);
+      c.position.set(cx, z2DH + crippleH / 2, fZ);
+      groups.frame.add(c);
+    }
+  }
   // Left end wall studs (x=0) along Z — height linearly from HB at back to HF at front
   const heightAlongDepth = (z) => HB - (HB - HF) * (z / D);
   addStudsOnLine(bw/2, 0, D, 'z', (_, z) => heightAlongDepth(z));
@@ -1100,127 +1111,207 @@ function drawPlan() {
 
 function drawFront() {
   const svg = document.getElementById('svg-front');
-  const W = 900, H = 360;
+  const W = 900, H = 380;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  const margin = 60;
-  const plotW = W - 2 * margin, plotH = H - 2 * margin - 20;
-  const roofExtra = (state.back - state.front);
-  const scaleX = plotW / state.length;
-  const scaleY = plotH / (state.back + 0.3);
-  const s = Math.min(scaleX, scaleY);
+  const margin = 65;
+  const plotW = W - 2 * margin, plotH = H - margin - 80;
+  const s = Math.min(plotW / state.length, plotH / (state.front + 0.5));
   const ox = margin + (plotW - state.length * s) / 2;
-  const baseY = margin + plotH; // ground line
+  const baseY = margin + plotH;
   const xP = x => ox + x * s;
   const yP = y => baseY - y * s;
 
+  const L = state.length, HF = state.front;
+  const z1v = state.z1, z3v = state.z3, z2w = z2();
+  const bw = 0.05;
+  const z2RightSolid = 0.4;
+  const z2DoorW2 = Math.min(1.6, z2w - 0.5 - z2RightSolid);
+  const z2SlideW2 = z2w - z2DoorW2 - z2RightSolid;
+  const z2DH = 2.0;
+  const mullionX = z1v + z2SlideW2;
+  const z2JLx = mullionX + bw;
+  const z2JRx = mullionX + bw + z2DoorW2;
+  const frontEnd = z1v + z2w;
+  const z2LeafW = (z2JRx - z2JLx) / 2;
+
   let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="#fafaf5"/>`;
-  // Zone fills on front face
-  const zones = [
-    { x0: 0, w: state.z1, c: '#c8dff5' },
-    { x0: state.z1, w: z2(), c: '#fde8c8' },
-    { x0: state.z1 + z2(), w: state.z3, c: '#e0e0e0' }
-  ];
-  zones.forEach(z => {
-    out += `<rect x="${xP(z.x0)}" y="${yP(state.front)}" width="${z.w * s}" height="${state.front * s}" fill="${z.c}"/>`;
+
+  // ── Zone fills ──
+  out += `<rect x="${xP(0)}" y="${yP(HF)}" width="${z1v*s}" height="${HF*s}" fill="#c8dff5"/>`;
+  out += `<rect x="${xP(z1v)}" y="${yP(HF)}" width="${z2w*s}" height="${HF*s}" fill="#fde8c8"/>`;
+  out += `<rect x="${xP(frontEnd)}" y="${yP(HF)}" width="${z3v*s}" height="${HF*s}" fill="#e8e8e8" fill-opacity="0.6"/>`;
+
+  // ── Zone 1 — removable panel full-height ──
+  out += `<rect x="${xP(0)}" y="${yP(HF)}" width="${z1v*s}" height="${HF*s}" fill="none" stroke="#2a2a2a" stroke-width="2"/>`;
+  out += `<rect x="${xP(bw)}" y="${yP(HF-0.05)}" width="${(z1v-bw)*s}" height="${(HF-0.05)*s}" fill="rgba(200,163,90,0.30)" stroke="#8a6030" stroke-width="1.5" stroke-dasharray="5 3"/>`;
+  [[0.1,0.15],[z1v-0.1,0.15],[0.1,HF-0.2],[z1v-0.1,HF-0.2]].forEach(([cx,cy]) => {
+    out += `<circle cx="${xP(cx)}" cy="${yP(cy)}" r="4" fill="#888" stroke="#555" stroke-width="1"/>`;
   });
-  // Front wall outline (zones 1+2)
-  const frontEnd = state.z1 + z2();
-  out += `<rect x="${xP(0)}" y="${yP(state.front)}" width="${frontEnd * s}" height="${state.front * s}" fill="none" stroke="#2a2a2a" stroke-width="2"/>`;
-  // Zone 3 open bay (dashed sides)
-  out += `<line x1="${xP(frontEnd)}" y1="${yP(state.front)}" x2="${xP(frontEnd)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="5 4"/>`;
-  out += `<line x1="${xP(state.length)}" y1="${yP(state.front)}" x2="${xP(state.length)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="2"/>`;
-  // Ground
-  out += `<line x1="${xP(-0.1)}" y1="${yP(0)}" x2="${xP(state.length + 0.1)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="2"/>`;
+  out += `<text x="${xP(z1v/2)}" y="${yP(HF*0.6)}" text-anchor="middle" font-size="11" fill="#1a4a80" font-weight="600">Zóna 1 — Nádrž</text>`;
+  out += `<text x="${xP(z1v/2)}" y="${yP(HF*0.6)+15}" text-anchor="middle" font-size="9.5" fill="#6a5030">vyjímatelný panel</text>`;
 
-  // Roof line (front elevation sees edge of roof across length, overhang above)
-  out += `<line x1="${xP(-0.15)}" y1="${yP(state.front + 0.15)}" x2="${xP(state.length + 0.15)}" y2="${yP(state.front + 0.15)}" stroke="#8b7355" stroke-width="3"/>`;
+  // ── Zone 2 — framed wall + double doors ──
+  out += `<rect x="${xP(z1v)}" y="${yP(HF)}" width="${z2w*s}" height="${HF*s}" fill="none" stroke="#2a2a2a" stroke-width="2"/>`;
+  // Left solid cladding
+  out += `<rect x="${xP(z1v)}" y="${yP(HF)}" width="${z2SlideW2*s}" height="${HF*s}" fill="rgba(168,133,91,0.35)"/>`;
+  // Right solid cladding
+  out += `<rect x="${xP(z2JRx+bw)}" y="${yP(HF)}" width="${(frontEnd-z2JRx-bw)*s}" height="${HF*s}" fill="rgba(168,133,91,0.35)"/>`;
+  // Cladding above door rough opening (between door top and top plate)
+  out += `<rect x="${xP(z2JLx)}" y="${yP(HF)}" width="${(z2JRx-z2JLx)*s}" height="${(HF-z2DH)*s}" fill="rgba(168,133,91,0.40)"/>`;
+  // Doubled top plate (red tint)
+  out += `<rect x="${xP(z1v)}" y="${yP(HF)}" width="${z2w*s}" height="${0.15*s}" fill="rgba(192,48,48,0.22)" stroke="#c03030" stroke-width="1.2"/>`;
+  out += `<text x="${xP(z1v+z2w/2)}" y="${yP(HF)+8}" text-anchor="middle" dominant-baseline="hanging" font-size="9" fill="#c03030">zdvojená pásnice 50×150</text>`;
+  // Door opening
+  out += `<rect x="${xP(z2JLx)}" y="${yP(z2DH)}" width="${(z2JRx-z2JLx)*s}" height="${z2DH*s}" fill="white" stroke="#444" stroke-width="1.5"/>`;
+  // Left leaf
+  out += `<rect x="${xP(z2JLx)}" y="${yP(z2DH)}" width="${z2LeafW*s}" height="${z2DH*s}" fill="rgba(122,92,56,0.50)" stroke="#555" stroke-width="1.2"/>`;
+  out += `<line x1="${xP(z2JLx+z2LeafW/2)}" y1="${yP(z2DH)}" x2="${xP(z2JLx+z2LeafW/2)}" y2="${yP(z2DH*0.25)}" stroke="#6a4020" stroke-width="1"/>`;
+  out += `<circle cx="${xP(z2JLx+z2LeafW-0.07)}" cy="${yP(z2DH*0.48)}" r="4" fill="#999"/>`;
+  // Right leaf
+  out += `<rect x="${xP(z2JLx+z2LeafW)}" y="${yP(z2DH)}" width="${z2LeafW*s}" height="${z2DH*s}" fill="rgba(122,92,56,0.50)" stroke="#555" stroke-width="1.2"/>`;
+  out += `<line x1="${xP(z2JLx+z2LeafW*1.5)}" y1="${yP(z2DH)}" x2="${xP(z2JLx+z2LeafW*1.5)}" y2="${yP(z2DH*0.25)}" stroke="#6a4020" stroke-width="1"/>`;
+  out += `<circle cx="${xP(z2JLx+z2LeafW+0.07)}" cy="${yP(z2DH*0.48)}" r="4" fill="#999"/>`;
+  // Door dims annotation
+  out += `<text x="${xP((z2JLx+z2JRx)/2)}" y="${yP(z2DH)-5}" text-anchor="middle" font-size="9" fill="#555">${(z2JRx-z2JLx).toFixed(2)} m · 2 křídla à ${z2LeafW.toFixed(2)} m</text>`;
+  out += `<text x="${xP(z1v+z2w/2)}" y="${yP(z2DH*0.55)}" text-anchor="middle" font-size="11" fill="#805010" font-weight="600">Zóna 2 — Sekačka</text>`;
 
-  // Zone 1 door
-  const doorW1 = 0.7, doorH1 = 1.8;
-  const d1x = state.z1 - 0.15 - doorW1;
-  out += `<rect x="${xP(d1x)}" y="${yP(doorH1)}" width="${doorW1 * s}" height="${doorH1 * s}" fill="none" stroke="#444" stroke-width="1"/>`;
-  out += `<circle cx="${xP(d1x + doorW1 - 0.08)}" cy="${yP(doorH1/2)}" r="3" fill="#444"/>`;
-  out += `<text x="${xP(d1x + doorW1/2)}" y="${yP(doorH1) - 8}" text-anchor="middle" font-size="10" fill="#444">přístup k nádrži</text>`;
-
-  // Zone 2 double doors
-  const zOpening = z2() * 0.9, leaf = zOpening / 2;
-  const d2x = state.z1 + (z2() - zOpening) / 2;
-  out += `<rect x="${xP(d2x)}" y="${yP(state.front - 0.05)}" width="${leaf * s}" height="${(state.front - 0.1) * s}" fill="none" stroke="#444" stroke-width="1"/>`;
-  out += `<rect x="${xP(d2x + leaf)}" y="${yP(state.front - 0.05)}" width="${leaf * s}" height="${(state.front - 0.1) * s}" fill="none" stroke="#444" stroke-width="1"/>`;
-  out += `<circle cx="${xP(d2x + leaf - 0.06)}" cy="${yP(state.front/2)}" r="3" fill="#444"/>`;
-  out += `<circle cx="${xP(d2x + leaf + 0.06)}" cy="${yP(state.front/2)}" r="3" fill="#444"/>`;
-  out += `<text x="${xP(d2x + zOpening/2)}" y="${yP(state.front) - 8}" text-anchor="middle" font-size="10" fill="#444">dvojitá vrata ${zOpening.toFixed(2)} m</text>`;
-
-  // Zone 3 open bay — show interior shelves
+  // ── Zone 3 — open bay ──
+  out += `<line x1="${xP(frontEnd)}" y1="${yP(HF)}" x2="${xP(frontEnd)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  out += `<line x1="${xP(L)}" y1="${yP(HF)}" x2="${xP(L)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="2"/>`;
+  out += `<text x="${xP(frontEnd+z3v/2)}" y="${yP(HF*0.6)}" text-anchor="middle" font-size="11" fill="#444" font-weight="600">Zóna 3</text>`;
+  out += `<text x="${xP(frontEnd+z3v/2)}" y="${yP(HF*0.6)+14}" text-anchor="middle" font-size="9.5" fill="#888">otevřené úložiště</text>`;
   state.shelves.filter(sh => sh.zone === 3 && sh.wall === 'back').forEach(sh => {
-    out += `<line x1="${xP(state.z1 + z2() + 0.05)}" y1="${yP(sh.height)}" x2="${xP(state.length - 0.05)}" y2="${yP(sh.height)}" stroke="#9a7a4f" stroke-width="2"/>`;
-    out += `<text x="${xP(state.z1 + z2() + state.z3/2)}" y="${yP(sh.height) - 2}" text-anchor="middle" font-size="9" fill="#6a5030">${sh.label}</text>`;
+    out += `<line x1="${xP(frontEnd+0.05)}" y1="${yP(sh.height)}" x2="${xP(L-0.05)}" y2="${yP(sh.height)}" stroke="#9a7a4f" stroke-width="2.5"/>`;
+    out += `<text x="${xP(frontEnd+z3v/2)}" y="${yP(sh.height)-3}" text-anchor="middle" font-size="9" fill="#6a5030">${sh.label}</text>`;
   });
 
-  // Dimension — total width
-  const dy = yP(0) + 30;
-  out += `<line x1="${xP(0)}" y1="${dy}" x2="${xP(state.length)}" y2="${dy}" stroke="#888880" stroke-width="1"/>`;
-  out += `<line x1="${xP(0)}" y1="${dy - 4}" x2="${xP(0)}" y2="${dy + 4}" stroke="#888880"/>`;
-  out += `<line x1="${xP(state.length)}" y1="${dy - 4}" x2="${xP(state.length)}" y2="${dy + 4}" stroke="#888880"/>`;
-  out += `<text x="${xP(state.length/2)}" y="${dy - 6}" text-anchor="middle" font-size="12" fill="#555">${state.length.toFixed(2)} m</text>`;
-  // Zone widths inside
-  zones.forEach(z => {
-    out += `<text x="${xP(z.x0 + z.w/2)}" y="${yP(0) + 16}" text-anchor="middle" font-size="11" fill="#666">${z.w.toFixed(2)} m</text>`;
+  // ── Ground ──
+  out += `<line x1="${xP(-0.1)}" y1="${yP(0)}" x2="${xP(L+0.1)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="2"/>`;
+
+  // ── Roof overhang + fascia ──
+  out += `<line x1="${xP(-0.15)}" y1="${yP(HF+0.06)}" x2="${xP(L+0.15)}" y2="${yP(HF+0.06)}" stroke="#8b7355" stroke-width="3.5"/>`;
+  out += `<line x1="${xP(-0.15)}" y1="${yP(HF-0.15)}" x2="${xP(L+0.15)}" y2="${yP(HF-0.15)}" stroke="#5c4020" stroke-width="2"/>`;
+  // Ventilation strip indication
+  out += `<rect x="${xP(0)}" y="${yP(HF+0.04)}" width="${frontEnd*s}" height="${0.04*s}" fill="#222" fill-opacity="0.6"/>`;
+  out += `<text x="${xP(frontEnd/2)}" y="${yP(HF+0.06)+2}" text-anchor="middle" font-size="8" fill="#eee">větrání</text>`;
+
+  // ── Dimensions ──
+  const dy = yP(0) + 28;
+  out += `<line x1="${xP(0)}" y1="${dy}" x2="${xP(L)}" y2="${dy}" stroke="#888880"/>`;
+  out += `<line x1="${xP(0)}" y1="${dy-4}" x2="${xP(0)}" y2="${dy+4}" stroke="#888880"/>`;
+  out += `<line x1="${xP(L)}" y1="${dy-4}" x2="${xP(L)}" y2="${dy+4}" stroke="#888880"/>`;
+  out += `<text x="${xP(L/2)}" y="${dy-5}" text-anchor="middle" font-size="11" fill="#555">${L.toFixed(2)} m</text>`;
+  [[0,z1v],[z1v,z2w],[frontEnd,z3v]].forEach(([x0,w]) => {
+    out += `<text x="${xP(x0+w/2)}" y="${yP(0)+16}" text-anchor="middle" font-size="10" fill="#666">${w.toFixed(2)} m</text>`;
   });
-  // Height
-  const dxH = xP(state.length) + 25;
-  out += `<line x1="${dxH}" y1="${yP(0)}" x2="${dxH}" y2="${yP(state.front)}" stroke="#888880"/>`;
-  out += `<text x="${dxH + 6}" y="${yP(state.front/2)}" font-size="11" fill="#555" dominant-baseline="middle">${state.front.toFixed(2)} m</text>`;
+  const dxH = xP(L) + 22;
+  out += `<line x1="${dxH}" y1="${yP(0)}" x2="${dxH}" y2="${yP(HF)}" stroke="#888880"/>`;
+  out += `<text x="${dxH+5}" y="${yP(HF/2)}" font-size="11" fill="#555" dominant-baseline="middle">${HF.toFixed(2)} m</text>`;
+  // Door height
+  const ddx = xP(z2JRx) + 6;
+  out += `<line x1="${ddx}" y1="${yP(0)}" x2="${ddx}" y2="${yP(z2DH)}" stroke="#c08040" stroke-width="1"/>`;
+  out += `<line x1="${ddx-3}" y1="${yP(z2DH)}" x2="${ddx+3}" y2="${yP(z2DH)}" stroke="#c08040"/>`;
+  out += `<text x="${ddx+4}" y="${yP(z2DH/2)}" font-size="9" fill="#c08040" dominant-baseline="middle">${z2DH.toFixed(1)} m</text>`;
 
   svg.innerHTML = out;
 }
 
 function drawSide() {
   const svg = document.getElementById('svg-side');
-  const W = 600, H = 400;
+  const W = 600, H = 420;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  const margin = 60;
-  const plotW = W - 2 * margin, plotH = H - 2 * margin - 20;
-  const s = Math.min(plotW / state.depth, plotH / (state.back + 0.3));
-  const ox = margin + (plotW - state.depth * s) / 2;
-  const baseY = margin + plotH;
+  const marginL = 70, marginR = 60, marginTop = 60, marginBot = 70;
+  const plotW = W - marginL - marginR;
+  const plotH = H - marginTop - marginBot;
+  const D = state.depth, HB = state.back, HF = state.front;
+  const rise = HB - HF;
+  const rafterLen = Math.sqrt(D*D + rise*rise) + 0.3;
+  const s = Math.min(plotW / (D + 0.5), plotH / (HB + 0.4));
+  const ox = marginL + (plotW - (D + 0.3) * s) / 2;
+  const baseY = marginTop + plotH;
   const xP = z => ox + z * s;
   const yP = y => baseY - y * s;
 
   let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="#fafaf5"/>`;
-  // Zone 2 fill (section is through zone 2)
-  out += `<polygon points="${xP(0)},${yP(0)} ${xP(state.depth)},${yP(0)} ${xP(state.depth)},${yP(state.front)} ${xP(0)},${yP(state.back)}" fill="#fde8c8"/>`;
-  // Outline
-  out += `<polygon points="${xP(0)},${yP(0)} ${xP(state.depth)},${yP(0)} ${xP(state.depth)},${yP(state.front)} ${xP(0)},${yP(state.back)}" fill="none" stroke="#2a2a2a" stroke-width="2"/>`;
-  // Roof with overhang
-  out += `<line x1="${xP(0)}" y1="${yP(state.back + 0.05)}" x2="${xP(state.depth + 0.3)}" y2="${yP(state.front - 0.3 * (state.back - state.front)/state.depth + 0.05)}" stroke="#8b7355" stroke-width="3"/>`;
+
+  // Interior fill (section through zone 2)
+  out += `<polygon points="${xP(0)},${yP(0)} ${xP(D)},${yP(0)} ${xP(D)},${yP(HF)} ${xP(0)},${yP(HB)}" fill="#fde8c8"/>`;
+  // Walls / outline
+  out += `<polygon points="${xP(0)},${yP(0)} ${xP(D)},${yP(0)} ${xP(D)},${yP(HF)} ${xP(0)},${yP(HB)}" fill="none" stroke="#2a2a2a" stroke-width="2"/>`;
+
+  // Back wall OSB (left edge, thick line)
+  out += `<line x1="${xP(0)}" y1="${yP(0)}" x2="${xP(0)}" y2="${yP(HB)}" stroke="#c8a45a" stroke-width="5"/>`;
+  // Front wall cladding (right edge, solid zone 2)
+  out += `<line x1="${xP(D)}" y1="${yP(0)}" x2="${xP(D)}" y2="${yP(HF)}" stroke="#a8855b" stroke-width="5"/>`;
+
+  // Doubled top plate front (thick horizontal)
+  out += `<rect x="${xP(D-0.05)}" y="${yP(HF)}" width="${0.08*s}" height="${0.15*s}" fill="#c03030" fill-opacity="0.5"/>`;
+  // Top ledger back
+  out += `<rect x="${xP(0)}" y="${yP(HB)}" width="${0.07*s}" height="${0.1*s}" fill="#2a2a2a" fill-opacity="0.6"/>`;
+
+  // Roof OSB + slope
+  const pitch = Math.atan2(rise, D);
+  const roofOverhang = 0.3;
+  const rz2 = D + roofOverhang;
+  const ry2 = HF - roofOverhang * Math.tan(pitch);
+  out += `<line x1="${xP(0)}" y1="${yP(HB+0.065)}" x2="${xP(rz2)}" y2="${yP(ry2+0.065)}" stroke="#8b7355" stroke-width="3.5"/>`;
+  out += `<line x1="${xP(0)}" y1="${yP(HB-0.015)}" x2="${xP(rz2)}" y2="${yP(ry2-0.015)}" stroke="#8b7355" stroke-width="1.5" stroke-dasharray="4 2"/>`;
+
+  // Fascia board at overhang tip
+  out += `<line x1="${xP(rz2-0.01)}" y1="${yP(ry2+0.07)}" x2="${xP(rz2-0.01)}" y2="${yP(ry2-0.15)}" stroke="#5c4020" stroke-width="4"/>`;
+  out += `<text x="${xP(rz2)}" y="${yP(ry2-0.07)}" font-size="9" fill="#5c4020"> fascia</text>`;
+
+  // Ventilation strip — front eave
+  out += `<rect x="${xP(D)}" y="${yP(HF+0.04)}" width="${0.015*s}" height="${0.04*s}" fill="#111111" fill-opacity="0.75"/>`;
+  out += `<text x="${xP(D+0.02)}" y="${yP(HF+0.02)}" font-size="8.5" fill="#333">větrání eaves</text>`;
+  // Ventilation strip — back eave
+  out += `<rect x="${xP(0)}" y="${yP(HB+0.04)}" width="${0.015*s}" height="${0.04*s}" fill="#111111" fill-opacity="0.6"/>`;
+
+  // Rafter 50×100 (diagonal)
+  out += `<line x1="${xP(0)}" y1="${yP(HB-0.05)}" x2="${xP(D)}" y2="${yP(HF-0.05)}" stroke="#2a2a2a" stroke-width="2.5"/>`;
+
+  // Floor OSB
+  out += `<rect x="${xP(0)}" y="${yP(0.115)}" width="${D*s}" height="${0.015*s}" fill="#c8a45a" fill-opacity="0.7"/>`;
+  // Floor joists
+  out += `<rect x="${xP(0)}" y="${yP(0.1)}" width="${D*s}" height="${0.1*s}" fill="#2a2a2a" fill-opacity="0.15" stroke="#2a2a2a" stroke-width="1"/>`;
+
   // Ground
-  out += `<line x1="${xP(-0.2)}" y1="${yP(0)}" x2="${xP(state.depth + 0.4)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="2"/>`;
-  // Interior shelf in zone 2 at ~1.6
-  const topShelf = state.shelves.find(sh => sh.zone === 2 && sh.wall === 'back');
-  const sy = topShelf ? topShelf.height : 1.6;
-  out += `<line x1="${xP(0.05)}" y1="${yP(sy)}" x2="${xP(0.05 + (topShelf?topShelf.depth:0.3))}" y2="${yP(sy)}" stroke="#9a7a4f" stroke-width="3"/>`;
-  out += `<text x="${xP(0.1)}" y="${yP(sy) - 5}" font-size="10" fill="#6a5030">police v ${sy.toFixed(2)} m</text>`;
-  // Mower silhouette (0.5m long, at the front area)
-  out += `<rect x="${xP(state.depth - 0.7)}" y="${yP(0.35)}" width="${0.5 * s}" height="${0.35 * s}" fill="#3a3a3a" fill-opacity="0.65" stroke="#2a2a2a"/>`;
-  out += `<circle cx="${xP(state.depth - 0.6)}" cy="${yP(0.08)}" r="${0.08 * s}" fill="#222"/>`;
-  out += `<circle cx="${xP(state.depth - 0.3)}" cy="${yP(0.08)}" r="${0.08 * s}" fill="#222"/>`;
-  out += `<text x="${xP(state.depth - 0.45)}" y="${yP(0.35) - 4}" text-anchor="middle" font-size="10" fill="#333">sekačka</text>`;
+  out += `<line x1="${xP(-0.2)}" y1="${yP(0)}" x2="${xP(D+0.5)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="2"/>`;
+
+  // Shelves (zone 2 back wall)
+  state.shelves.filter(sh => sh.zone === 2 && sh.wall === 'back').forEach(sh => {
+    out += `<line x1="${xP(0.05)}" y1="${yP(sh.height)}" x2="${xP(0.05+sh.depth)}" y2="${yP(sh.height)}" stroke="#9a7a4f" stroke-width="3"/>`;
+    out += `<text x="${xP(0.06+sh.depth)}" y="${yP(sh.height)-2}" font-size="9" fill="#6a5030">${sh.label} — v ${sh.height.toFixed(2)} m</text>`;
+  });
+
+  // Mower silhouette (zone 2, near front)
+  out += `<rect x="${xP(D-0.65)}" y="${yP(0.38)}" width="${0.48*s}" height="${0.35*s}" fill="#3a3a3a" fill-opacity="0.55" stroke="#222"/>`;
+  out += `<circle cx="${xP(D-0.55)}" cy="${yP(0.09)}" r="${0.08*s}" fill="#222"/>`;
+  out += `<circle cx="${xP(D-0.27)}" cy="${yP(0.09)}" r="${0.08*s}" fill="#222"/>`;
+  out += `<text x="${xP(D-0.41)}" y="${yP(0.38)-3}" text-anchor="middle" font-size="9" fill="#333">sekačka</text>`;
+
+  // Gable vent symbol (near back-top of end wall)
+  out += `<rect x="${xP(0.22)}" y="${yP(HB-0.22)}" width="${0.28*s}" height="${0.16*s}" fill="#333" fill-opacity="0.7" stroke="#555" stroke-width="1"/>`;
+  out += `<text x="${xP(0.36)}" y="${yP(HB-0.14)}" text-anchor="middle" font-size="8" fill="#eee">vent</text>`;
+
+  // Pitch label
+  const deg = pitch * 180 / Math.PI;
+  out += `<text x="${xP(D/2)}" y="${yP((HB+HF)/2+0.1)}" text-anchor="middle" font-size="11" fill="#8b6040">sklon ${deg.toFixed(1)}°</text>`;
+  out += `<text x="${xP(D/2)}" y="${yP((HB+HF)/2-0.1)}" text-anchor="middle" font-size="10" fill="#8b6040">krokev ${rafterLen.toFixed(2)} m</text>`;
 
   // Dimensions
-  const dxl = xP(0) - 25;
-  out += `<line x1="${dxl}" y1="${yP(0)}" x2="${dxl}" y2="${yP(state.back)}" stroke="#888880"/>`;
-  out += `<text x="${dxl - 6}" y="${yP(state.back/2)}" text-anchor="end" font-size="11" fill="#555" dominant-baseline="middle">${state.back.toFixed(2)} m</text>`;
-  const dxr = xP(state.depth) + 25;
-  out += `<line x1="${dxr}" y1="${yP(0)}" x2="${dxr}" y2="${yP(state.front)}" stroke="#888880"/>`;
-  out += `<text x="${dxr + 6}" y="${yP(state.front/2)}" font-size="11" fill="#555" dominant-baseline="middle">${state.front.toFixed(2)} m</text>`;
-  const dy = yP(0) + 28;
-  out += `<line x1="${xP(0)}" y1="${dy}" x2="${xP(state.depth)}" y2="${dy}" stroke="#888880"/>`;
-  out += `<text x="${xP(state.depth/2)}" y="${dy - 6}" text-anchor="middle" font-size="11" fill="#555">${state.depth.toFixed(2)} m</text>`;
-
-  const rise = state.back - state.front;
-  const deg = Math.atan(rise / state.depth) * 180 / Math.PI;
-  out += `<text x="${xP(state.depth/2)}" y="${yP((state.back + state.front)/2)}" text-anchor="middle" font-size="11" fill="#8b6040">sklon ${deg.toFixed(1)}°</text>`;
+  const dxl = xP(0) - 28;
+  out += `<line x1="${dxl}" y1="${yP(0)}" x2="${dxl}" y2="${yP(HB)}" stroke="#888880"/>`;
+  out += `<line x1="${dxl-4}" y1="${yP(HB)}" x2="${dxl+4}" y2="${yP(HB)}" stroke="#888880"/>`;
+  out += `<text x="${dxl-5}" y="${yP(HB/2)}" text-anchor="end" font-size="11" fill="#555" dominant-baseline="middle">${HB.toFixed(2)} m</text>`;
+  const dxr = xP(D) + 26;
+  out += `<line x1="${dxr}" y1="${yP(0)}" x2="${dxr}" y2="${yP(HF)}" stroke="#888880"/>`;
+  out += `<text x="${dxr+5}" y="${yP(HF/2)}" font-size="11" fill="#555" dominant-baseline="middle">${HF.toFixed(2)} m</text>`;
+  const dy = yP(0) + 32;
+  out += `<line x1="${xP(0)}" y1="${dy}" x2="${xP(D)}" y2="${dy}" stroke="#888880"/>`;
+  out += `<line x1="${xP(0)}" y1="${dy-4}" x2="${xP(0)}" y2="${dy+4}" stroke="#888880"/>`;
+  out += `<line x1="${xP(D)}" y1="${dy-4}" x2="${xP(D)}" y2="${dy+4}" stroke="#888880"/>`;
+  out += `<text x="${xP(D/2)}" y="${dy-5}" text-anchor="middle" font-size="11" fill="#555">${D.toFixed(2)} m</text>`;
 
   svg.innerHTML = out;
 }
@@ -1228,43 +1319,154 @@ function drawSide() {
 function drawFraming() {
   const svg = document.getElementById('svg-framing');
   const W = 900;
-  const marginTop = 50, marginSide = 70, marginBottom = 60;
+  const marginTop = 80, marginSide = 70, marginBottom = 70;
   const plotW = W - 2 * marginSide;
-  // Scale to fill width, then set height from content
-  const s = plotW / state.length;
-  const contentH = state.back * s;
+  const L = state.length, HF = state.front, HB = state.back;
+  const z1v = state.z1, z3v = state.z3, z2w = z2();
+  const bw = 0.05;
+  const z2RightSolid = 0.4;
+  const z2DoorW2 = Math.min(1.6, z2w - 0.5 - z2RightSolid);
+  const z2SlideW2 = z2w - z2DoorW2 - z2RightSolid;
+  const z2DH = 2.0;
+  const mullionX = z1v + z2SlideW2;
+  const z2JLx = mullionX + bw;
+  const z2JRx = mullionX + bw + z2DoorW2;
+  const z2RightKingX = z2JRx + bw;
+  const frontEnd = z1v + z2w;
+  const studSpacing = 0.6;
+
+  const s = plotW / L;
+  const contentH = HF * s;
   const H = Math.round(marginTop + contentH + marginBottom);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
   const ox = marginSide;
   const baseY = marginTop + contentH;
   const xP = x => ox + x * s;
   const yP = y => baseY - y * s;
 
   let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="#fafaf5"/>`;
-  // Outline
-  out += `<rect x="${xP(0)}" y="${yP(state.back)}" width="${state.length * s}" height="${state.back * s}" fill="none" stroke="#ccc"/>`;
-  // Back wall studs at 600mm o.c.
-  const spacing = 0.6;
-  const n = Math.ceil(state.length / spacing) + 1;
-  for (let i = 0; i < n; i++) {
-    const x = Math.min(i * spacing, state.length);
-    out += `<line x1="${xP(x)}" y1="${yP(0)}" x2="${xP(x)}" y2="${yP(state.back)}" stroke="#2a2a2a" stroke-width="2"/>`;
-  }
-  // Top and bottom plates (back wall)
-  out += `<line x1="${xP(0)}" y1="${yP(state.back)}" x2="${xP(state.length)}" y2="${yP(state.back)}" stroke="#2a2a2a" stroke-width="4"/>`;
-  out += `<line x1="${xP(0)}" y1="${yP(0)}" x2="${xP(state.length)}" y2="${yP(0)}" stroke="#2a2a2a" stroke-width="4"/>`;
-  // Zone dividers
-  [state.z1, state.z1 + z2()].forEach(xv => {
-    out += `<line x1="${xP(xv)}" y1="${yP(0)}" x2="${xP(xv)}" y2="${yP(state.back)}" stroke="#1a6bbf" stroke-width="2" stroke-dasharray="4 4"/>`;
-  });
-  // Door header for zone 2
-  out += `<line x1="${xP(state.z1 + 0.05)}" y1="${yP(state.front - 0.1)}" x2="${xP(state.z1 + z2() - 0.05)}" y2="${yP(state.front - 0.1)}" stroke="#a03030" stroke-width="4"/>`;
-  out += `<text x="${xP(state.z1 + z2()/2)}" y="${yP(state.front - 0.1) - 6}" text-anchor="middle" font-size="11" fill="#a03030">překlad dveří 50×150</text>`;
 
-  // Label
-  out += `<text x="${xP(state.length/2)}" y="${yP(state.back) - 12}" text-anchor="middle" font-size="13" fill="#333">Rám zadní stěny — sloupky 50×100 @ 600 mm o.c.</text>`;
-  out += `<text x="${xP(0)}" y="${yP(0) + 22}" font-size="11" fill="#555">${n} sloupků · dolní/horní pásnice 50×100 · rohy zdvojené</text>`;
-  out += `<text x="${xP(state.length)}" y="${yP(0) + 22}" text-anchor="end" font-size="11" fill="#555">podlahové trámy 50×100 @ 500 mm · krokve 50×100 @ 500 mm</text>`;
+  // ── Zone background fills ──
+  out += `<rect x="${xP(0)}" y="${yP(HF)}" width="${z1v*s}" height="${HF*s}" fill="#c8dff5" fill-opacity="0.35"/>`;
+  out += `<rect x="${xP(z1v)}" y="${yP(HF)}" width="${z2w*s}" height="${HF*s}" fill="#fde8c8" fill-opacity="0.35"/>`;
+  out += `<rect x="${xP(frontEnd)}" y="${yP(HF)}" width="${z3v*s}" height="${HF*s}" fill="#e0e0e0" fill-opacity="0.35"/>`;
+
+  // Door rough opening (white cutout)
+  out += `<rect x="${xP(z2JLx)}" y="${yP(z2DH)}" width="${(z2JRx-z2JLx)*s}" height="${z2DH*s}" fill="white" stroke="#c08040" stroke-width="1" stroke-dasharray="4 3"/>`;
+  // Zone 1 panel area
+  out += `<rect x="${xP(bw)}" y="${yP(HF)}" width="${(z1v-bw)*s}" height="${HF*s}" fill="rgba(200,163,90,0.12)" stroke="#8a6030" stroke-width="1" stroke-dasharray="5 3"/>`;
+
+  // ── Bottom plate ──
+  out += `<rect x="${xP(0)}" y="${yP(0)}" width="${frontEnd*s}" height="${0.05*s}" fill="#2a2a2a" fill-opacity="0.7"/>`;
+
+  // ── Doubled top plate (zones 1+2) — shown as filled rect ──
+  out += `<rect x="${xP(0)}" y="${yP(HF)}" width="${frontEnd*s}" height="${0.15*s}" fill="#c03030" fill-opacity="0.25" stroke="#c03030" stroke-width="2"/>`;
+  out += `<line x1="${xP(0)}" y1="${yP(HF)}" x2="${xP(frontEnd)}" y2="${yP(HF)}" stroke="#1a1a1a" stroke-width="5"/>`;
+  out += `<line x1="${xP(0)}" y1="${yP(HF-0.075)}" x2="${xP(frontEnd)}" y2="${yP(HF-0.075)}" stroke="#1a1a1a" stroke-width="2"/>`;
+
+  // ── Zone 3 fascia beam ──
+  out += `<rect x="${xP(frontEnd)}" y="${yP(HF-0.05)}" width="${z3v*s}" height="${0.1*s}" fill="#8b6040" fill-opacity="0.6" stroke="#6a4820" stroke-width="1.5"/>`;
+  out += `<text x="${xP(frontEnd+z3v/2)}" y="${yP(HF-0.05)+4}" text-anchor="middle" dominant-baseline="middle" font-size="9" fill="#5a3810">fascia 50×100</text>`;
+
+  // ── Corner posts (doubled — two thick lines) ──
+  const kingW = 5.5, kingColor = '"#2a2a2a"';
+  [[0,HF],[z1v,HF],[frontEnd,HF],[L,HF]].forEach(([x,h]) => {
+    out += `<line x1="${xP(x)}" y1="${yP(0)}" x2="${xP(x)}" y2="${yP(h)}" stroke="#2a2a2a" stroke-width="${kingW}"/>`;
+    out += `<line x1="${xP(x+bw*0.9)}" y1="${yP(0)}" x2="${xP(x+bw*0.9)}" y2="${yP(h)}" stroke="#444" stroke-width="2.5"/>`;
+  });
+  // Zone 1 right-boundary double post
+  out += `<line x1="${xP(z1v-bw)}" y1="${yP(0)}" x2="${xP(z1v-bw)}" y2="${yP(HF)}" stroke="#2a2a2a" stroke-width="3"/>`;
+
+  // ── Zone 2 left solid section — regular studs ──
+  for (let sx = z1v+studSpacing; sx < mullionX-bw*1.5; sx += studSpacing) {
+    out += `<line x1="${xP(sx)}" y1="${yP(0)}" x2="${xP(sx)}" y2="${yP(HF)}" stroke="#2a2a2a" stroke-width="3"/>`;
+  }
+
+  // ── Mullion (king stud at left edge of door opening) ──
+  out += `<line x1="${xP(mullionX)}" y1="${yP(0)}" x2="${xP(mullionX)}" y2="${yP(HF)}" stroke="#2a2a2a" stroke-width="5"/>`;
+  out += `<line x1="${xP(mullionX+bw)}" y1="${yP(0)}" x2="${xP(mullionX+bw)}" y2="${yP(HF)}" stroke="#444" stroke-width="2"/>`;
+
+  // ── Jack/trimmer studs (door opening sides) ──
+  out += `<line x1="${xP(z2JLx)}" y1="${yP(0)}" x2="${xP(z2JLx)}" y2="${yP(z2DH)}" stroke="#666" stroke-width="2.5" stroke-dasharray="10 3"/>`;
+  out += `<line x1="${xP(z2JRx)}" y1="${yP(0)}" x2="${xP(z2JRx)}" y2="${yP(z2DH)}" stroke="#666" stroke-width="2.5" stroke-dasharray="10 3"/>`;
+
+  // ── Cripple studs above door ──
+  const nCripple = Math.max(1, Math.round((z2JRx-z2JLx)/studSpacing));
+  for (let ci = 1; ci < nCripple; ci++) {
+    const cx = z2JLx + ci*(z2JRx-z2JLx)/nCripple;
+    out += `<line x1="${xP(cx)}" y1="${yP(z2DH)}" x2="${xP(cx)}" y2="${yP(HF-0.15)}" stroke="#888" stroke-width="2" stroke-dasharray="5 2"/>`;
+  }
+
+  // ── Door top line ──
+  out += `<line x1="${xP(z2JLx)}" y1="${yP(z2DH)}" x2="${xP(z2JRx)}" y2="${yP(z2DH)}" stroke="#c08040" stroke-width="2"/>`;
+  out += `<text x="${xP((z2JLx+z2JRx)/2)}" y="${yP(z2DH)+12}" text-anchor="middle" font-size="9" fill="#c08040">výška dveří ${z2DH.toFixed(1)} m</text>`;
+
+  // ── King stud at right edge of door opening ──
+  out += `<line x1="${xP(z2RightKingX)}" y1="${yP(0)}" x2="${xP(z2RightKingX)}" y2="${yP(HF)}" stroke="#2a2a2a" stroke-width="5"/>`;
+
+  // ── Right solid section studs ──
+  for (let sx = z2RightKingX+studSpacing; sx < frontEnd-bw*1.5; sx += studSpacing) {
+    out += `<line x1="${xP(sx)}" y1="${yP(0)}" x2="${xP(sx)}" y2="${yP(HF)}" stroke="#2a2a2a" stroke-width="3"/>`;
+  }
+
+  // ── Zone 3 — rafter tails (diagonal lines) ──
+  const rafterSpacing = 0.5;
+  const pitchAngle = Math.atan2(HB-HF, state.depth);
+  for (let rx = frontEnd; rx <= L; rx += rafterSpacing) {
+    out += `<line x1="${xP(rx)}" y1="${yP(HF)}" x2="${xP(rx)}" y2="${yP(0)}" stroke="#8b7355" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  }
+
+  // ── Legend box ──
+  const lx = xP(L) + 15, ly = yP(HF);
+  const lItems = [
+    ['#2a2a2a', 5.5, 'Sloupek 50×100'],
+    ['#666', 2.5, 'Trimmer/jack stud (přerušovaný)'],
+    ['#888', 2, 'Cripple (nad dveřmi)'],
+    ['#c03030', 2, 'Zdvojen. pásnice 50×150'],
+    ['#8b7355', 1.5, 'Krokev (zóna 3)'],
+  ];
+  lItems.forEach(([col, sw, label], i) => {
+    out += `<line x1="${lx}" y1="${ly+18+i*16}" x2="${lx+22}" y2="${ly+18+i*16}" stroke="${col}" stroke-width="${sw}"/>`;
+    out += `<text x="${lx+27}" y="${ly+18+i*16}" font-size="9.5" fill="#333" dominant-baseline="middle">${label}</text>`;
+  });
+
+  // ── Title ──
+  out += `<text x="${xP(L/2)}" y="${marginTop-50}" text-anchor="middle" font-size="14" font-weight="bold" fill="#1a1a1a">Čelní stěna — schéma rámu</text>`;
+  out += `<text x="${xP(L/2)}" y="${marginTop-32}" text-anchor="middle" font-size="11" fill="#555">sloupky 50×100 @ 600 mm o.c. · zdvojená horní pásnice 50×150 mm přes zóny 1+2</text>`;
+
+  // Zone labels (centered in each zone, above wall)
+  [
+    [0, z1v, 'Zóna 1', '#1a4a80'],
+    [z1v, z2w, 'Zóna 2', '#805010'],
+    [frontEnd, z3v, 'Zóna 3 (otevřená)', '#444'],
+  ].forEach(([x0, w, label, col]) => {
+    out += `<text x="${xP(x0+w/2)}" y="${marginTop-10}" text-anchor="middle" font-size="11" fill="${col}" font-weight="600">${label}</text>`;
+    out += `<text x="${xP(x0+w/2)}" y="${yP(0)+22}" text-anchor="middle" font-size="10" fill="${col}">${w.toFixed(2)} m</text>`;
+  });
+
+  // Panel label (zone 1)
+  out += `<text x="${xP(z1v/2)}" y="${yP(HF*0.5)+4}" text-anchor="middle" font-size="9.5" fill="#8a6030">[vyjím. panel]</text>`;
+  // Door label
+  out += `<text x="${xP((z2JLx+z2JRx)/2)}" y="${yP(z2DH*0.5)}" text-anchor="middle" font-size="10" fill="#c08040">dveře</text>`;
+  out += `<text x="${xP((z2JLx+z2JRx)/2)}" y="${yP(z2DH*0.5)+14}" text-anchor="middle" font-size="9" fill="#c08040">${(z2JRx-z2JLx).toFixed(2)}×${z2DH} m</text>`;
+
+  // ── Dimensions ──
+  const dy = yP(0) + 38;
+  out += `<line x1="${xP(0)}" y1="${dy}" x2="${xP(L)}" y2="${dy}" stroke="#888880"/>`;
+  out += `<line x1="${xP(0)}" y1="${dy-4}" x2="${xP(0)}" y2="${dy+4}" stroke="#888880"/>`;
+  out += `<line x1="${xP(L)}" y1="${dy-4}" x2="${xP(L)}" y2="${dy+4}" stroke="#888880"/>`;
+  out += `<text x="${xP(L/2)}" y="${dy-5}" text-anchor="middle" font-size="11" fill="#555">${L.toFixed(2)} m</text>`;
+  const dxH = ox - 30;
+  out += `<line x1="${dxH}" y1="${yP(0)}" x2="${dxH}" y2="${yP(HF)}" stroke="#888880"/>`;
+  out += `<line x1="${dxH-3}" y1="${yP(HF)}" x2="${dxH+3}" y2="${yP(HF)}" stroke="#888880"/>`;
+  out += `<text x="${dxH-5}" y="${yP(HF/2)}" text-anchor="end" font-size="11" fill="#555" dominant-baseline="middle">${HF.toFixed(2)} m</text>`;
+  // door opening width
+  const doorDimY = yP(0) + 54;
+  out += `<line x1="${xP(z2JLx)}" y1="${doorDimY}" x2="${xP(z2JRx)}" y2="${doorDimY}" stroke="#c08040"/>`;
+  out += `<line x1="${xP(z2JLx)}" y1="${doorDimY-3}" x2="${xP(z2JLx)}" y2="${doorDimY+3}" stroke="#c08040"/>`;
+  out += `<line x1="${xP(z2JRx)}" y1="${doorDimY-3}" x2="${xP(z2JRx)}" y2="${doorDimY+3}" stroke="#c08040"/>`;
+  out += `<text x="${xP((z2JLx+z2JRx)/2)}" y="${doorDimY-4}" text-anchor="middle" font-size="10" fill="#c08040">${(z2JRx-z2JLx).toFixed(2)} m</text>`;
 
   svg.innerHTML = out;
 }
@@ -1325,7 +1527,7 @@ function calcMaterials() {
     ['Pásnice (horní/dolní)', '50×100 mm', platesM.toFixed(1), 'm', 'Dolní impregnované'],
     ['Krokve', '50×100 mm', raftersM.toFixed(1), 'm', `Délka ${rafterLen.toFixed(2)} m × ${rafterCount} ks`],
     ['Sloupky příček', '45×70 mm', partStudsM.toFixed(1), 'm', 'Mezi zónami'],
-    ['Překlad dveří', '50×150 mm', (z2w + 0.3).toFixed(1), 'm', 'Zóna 2'],
+    ['Zdvojená horní pásnice', '50×150 mm zdvojená', (z2w + 0.3).toFixed(1), 'm', 'Zóna 2 — přes celou šíři, bez překladu'],
     ['OSB deska (střecha)', '15 mm, 1250×2500 mm', roofSheets, 'ks', '—'],
     ['OSB deska (stěny)', '12 mm, 1250×2500 mm', wallSheets, 'ks', 'Volitelné'],
     ['Palubky / obklad', '20 mm, 100–150 mm', claddingArea.toFixed(1), 'm²', '+10 % prořez'],
