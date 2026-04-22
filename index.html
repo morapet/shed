@@ -441,8 +441,9 @@ function groundScrewPositions() {
     const k = `${x.toFixed(3)},${z.toFixed(3)}`;
     if (!seen.has(k)) { seen.add(k); pos.push([+x.toFixed(3), +z.toFixed(3)]); }
   };
-  // Zone 1 — 4 cols × 2 rows = 8 screws under tank (front + back edges only)
-  [0, z1v/3, (2*z1v)/3, z1v].forEach(x => [0, D].forEach(z => add(x, z)));
+  // Zone 1 — perimeter ring: 3 along front, 3 along back, 3 along each side (corners shared) = 8 screws
+  [0, z1v/2, z1v].forEach(x => [0, D].forEach(z => add(x, z)));       // front + back: 3 each
+  [0, D/2, D].forEach(z => [0, z1v].forEach(x => add(x, z)));         // left + right: 3 each (corners deduped)
   // Zones 2+3 — 1.5 m grid along back + front only
   for (let x = z1v + 1.5; ; x += 1.5) {
     const px = Math.min(x, L);
