@@ -142,6 +142,16 @@
   button.primary:hover { background: #1d4ed8; }
 
 
+  .shop-banner { padding:10px 12px; background:#fff8ee; border:1px solid #e8d090; border-radius:6px; font-size:12px; color:#6a5010; margin-bottom:10px; }
+  .shop-banner strong { color:#4a3000; }
+  .shop-total { background:#f0f8f0; font-weight:700; }
+  .shop-total td { padding:10px 8px !important; }
+  .shop-total .num { font-size:15px; color:#1a6020; }
+  .mat td a { color:var(--accent); text-decoration:none; font-size:11px; }
+  .mat td a:hover { text-decoration:underline; }
+  .mat td a.dc { color:#e67300; }
+  .shop-group td { background:#f5f3ee; font-weight:700; font-size:12px; color:var(--text-2); padding:5px 8px !important; letter-spacing:0.3px; }
+
   @media print {
     header, .controls, #gate, .tabs { display: none !important; }
     .app { display: block; padding: 0; }
@@ -245,12 +255,14 @@
       <button data-tab="side">Boční řez</button>
       <button data-tab="framing">Rám</button>
       <button data-tab="materials">Výkaz materiálu</button>
+      <button data-tab="shopping">🛒 Kde koupit</button>
     </div>
     <div class="tab-panel" id="tab-plan"><svg class="dwg" id="svg-plan" viewBox="0 0 900 420"></svg></div>
     <div class="tab-panel hidden" id="tab-front"><svg class="dwg" id="svg-front" viewBox="0 0 900 360"></svg></div>
     <div class="tab-panel hidden" id="tab-side"><svg class="dwg" id="svg-side" viewBox="0 0 600 400"></svg></div>
     <div class="tab-panel hidden" id="tab-framing"><svg class="dwg" id="svg-framing" viewBox="0 0 900 620"></svg></div>
     <div class="tab-panel hidden" id="tab-materials"><div id="materials-tbl"></div></div>
+    <div class="tab-panel hidden" id="tab-shopping"><div id="shopping-tbl"></div></div>
   </div>
 </div>
 
@@ -1598,6 +1610,213 @@ function setupActions() {
   });
 }
 
+/* ===== Shopping list ===== */
+function renderShopping() {
+  const cont = document.getElementById('shopping-tbl');
+  const mats = calcMaterials();
+  const HB = 'https://www.hornbach.cz';
+  const DC = 'https://eshop.drevocentrum-as.cz';
+
+  const roofUrls = {
+    epdm:    `${HB}/c/stavebniny/stresni-krytiny/epdm-folie/S34187/`,
+    bitumen: `${HB}/c/stavebniny/stresni-krytiny/asfaltove-stresni-krytiny/asfaltove-sindele/S23832/`,
+    metal:   `${HB}/s/trapézový+plech+střecha`,
+  };
+  const roofPrices = { epdm: 380, bitumen: 250, metal: 320 };
+  const roofLabels = {
+    epdm:    'EPDM fólie 1,2 mm — kat. Hornbach',
+    bitumen: 'Asfaltový šindel PRECIT 2 m² bal. (~250 Kč/m²)',
+    metal:   'Trapézový plech — hledat Hornbach',
+  };
+
+  // Number of earth screws based on perimeter spacing ~1.5 m
+  const nScrews = Math.max(8, Math.ceil(2 * (state.length + state.depth) / 1.5));
+
+  // Catalog: one entry per mats[] row
+  // Each: { group, hbUrl, hbLabel, dcUrl, dcLabel, unitPrice, priceUnit, buyQty(qty), rowTotal(qty), warn }
+  const cat = [
+    // 0: Podlahové trámy 50×100 m (impreg)
+    { group:'Dřevo 50×100 mm',
+      hbUrl:`${HB}/p/fosna-truhlarska-50-x-100-x-3000-mm-smrk/4228382/`, hbLabel:'Fošna 50×100×3 m smrk — 299 Kč/ks',
+      dcUrl:`${DC}/z83384-smrkova-fosna-stavebni-50-x-100-x-3-000-mm`,   dcLabel:'Fošna 50×100×3 m — Dřevocentrum',
+      unitPrice:100, priceUnit:'Kč/m',
+      buyQty: q => `${Math.ceil(+q/3)} ks × 3 m`,
+      rowTotal: q => Math.ceil(+q/3)*299,
+      warn:'⚠️ podlaha — použít impregnovanou variantu' },
+    // 1: Obvodové trámy 50×100 m
+    { group:'Dřevo 50×100 mm',
+      hbUrl:`${HB}/p/fosna-truhlarska-50-x-100-x-3000-mm-smrk/4228382/`, hbLabel:'Fošna 50×100×3 m smrk — 299 Kč/ks',
+      dcUrl:`${DC}/z83384-smrkova-fosna-stavebni-50-x-100-x-3-000-mm`,   dcLabel:'Fošna 50×100×3 m — Dřevocentrum',
+      unitPrice:100, priceUnit:'Kč/m',
+      buyQty: q => `${Math.ceil(+q/3)} ks × 3 m`,
+      rowTotal: q => Math.ceil(+q/3)*299,
+      warn:'zdvojené — objednat po 2 ks na každý úsek' },
+    // 2: Sloupky stěn 50×100 m
+    { group:'Dřevo 50×100 mm',
+      hbUrl:`${HB}/p/fosna-truhlarska-50-x-100-x-3000-mm-smrk/4228382/`, hbLabel:'Fošna 50×100×3 m smrk — 299 Kč/ks',
+      dcUrl:`${DC}/z83384-smrkova-fosna-stavebni-50-x-100-x-3-000-mm`,   dcLabel:'Fošna 50×100×3 m — Dřevocentrum',
+      unitPrice:100, priceUnit:'Kč/m',
+      buyQty: q => `${Math.ceil(+q/3)} ks × 3 m`,
+      rowTotal: q => Math.ceil(+q/3)*299, warn:'' },
+    // 3: Pásnice 50×100 m
+    { group:'Dřevo 50×100 mm',
+      hbUrl:`${HB}/p/fosna-truhlarska-50-x-100-x-3000-mm-smrk/4228382/`, hbLabel:'Fošna 50×100×3 m smrk — 299 Kč/ks',
+      dcUrl:`${DC}/z83384-smrkova-fosna-stavebni-50-x-100-x-3-000-mm`,   dcLabel:'Fošna 50×100×3 m — Dřevocentrum',
+      unitPrice:100, priceUnit:'Kč/m',
+      buyQty: q => `${Math.ceil(+q/3)} ks × 3 m`,
+      rowTotal: q => Math.ceil(+q/3)*299, warn:'' },
+    // 4: Krokve 50×100 m
+    { group:'Dřevo 50×100 mm',
+      hbUrl:`${HB}/p/fosna-truhlarska-50-x-100-x-3000-mm-smrk/4228382/`, hbLabel:'Fošna 50×100×3 m smrk — 299 Kč/ks',
+      dcUrl:`${DC}/z83384-smrkova-fosna-stavebni-50-x-100-x-3-000-mm`,   dcLabel:'Fošna 50×100×3 m — Dřevocentrum',
+      unitPrice:100, priceUnit:'Kč/m',
+      buyQty: q => `${Math.ceil(+q/3)} ks × 3 m`,
+      rowTotal: q => Math.ceil(+q/3)*299, warn:'' },
+    // 5: Sloupky příček 45×70 m
+    { group:'Dřevo ostatní',
+      hbUrl:`${HB}/s/hranol+45x70+smrk`, hbLabel:'Hranol 45×70 smrk — hledat Hornbach',
+      dcUrl:`${DC}/k-stavba`, dcLabel:'Dřevocentrum — Stavba',
+      unitPrice:65, priceUnit:'Kč/m (odh.)',
+      buyQty: q => `${Math.ceil(+q/3)} ks × 3 m`,
+      rowTotal: q => Math.ceil(+q/3)*195, warn:'' },
+    // 6: Zdvojená pásnice 50×150 m
+    { group:'Dřevo ostatní',
+      hbUrl:`${HB}/s/hranol+50x150+smrk`, hbLabel:'Hranol 50×150 smrk — hledat Hornbach',
+      dcUrl:`${DC}/k-stavba`, dcLabel:'Dřevocentrum — Stavba',
+      unitPrice:150, priceUnit:'Kč/m (odh.)',
+      buyQty: q => `${Math.ceil(+q/3)*2} ks × 3 m (zdv.)`,
+      rowTotal: q => Math.ceil(+q/3)*2*450,
+      warn:'zdvojená — 2 ks na každý úsek' },
+    // 7: OSB střecha 15mm ks
+    { group:'Desky',
+      hbUrl:`${HB}/conf/osb-deska-kronospan-osb-3-f0-15-x-1250-x-2500-mm-nebrousena/3397975/`,
+      hbLabel:'OSB 3 F0 15 mm 1250×2500 — 639 Kč/ks',
+      dcUrl:null, dcLabel:null,
+      unitPrice:639, priceUnit:'Kč/ks',
+      buyQty: q => `${q} ks`, rowTotal: q => +q*639, warn:'' },
+    // 8: OSB stěny 12mm ks
+    { group:'Desky',
+      hbUrl:`${HB}/conf/osb-deska-kronospan-osb-3-f0-12-x-1250-x-2500-mm-nebrousena/3880511/`,
+      hbLabel:'OSB 3 F0 12 mm 1250×2500 — ~510 Kč/ks',
+      dcUrl:null, dcLabel:null,
+      unitPrice:510, priceUnit:'Kč/ks (odh.)',
+      buyQty: q => `${q} ks`, rowTotal: q => +q*510, warn:'' },
+    // 9: Palubky / obklad m²
+    { group:'Obklad',
+      hbUrl:`${HB}/p/drevena-palubka-smrk-klasik-b-c-15x121x3000-mm/12459958/`,
+      hbLabel:'Palubka smrk KLASIK B/C 15×121×3000 — 299 Kč/m²',
+      dcUrl:`${DC}/k-stavba`, dcLabel:'Dřevocentrum — Stavba',
+      unitPrice:299, priceUnit:'Kč/m²',
+      buyQty: q => `${q} m²`, rowTotal: q => Math.round(+q*299), warn:'' },
+    // 10: Krytina m²
+    { group:'Krytina',
+      hbUrl: roofUrls[state.roofing], hbLabel: roofLabels[state.roofing],
+      dcUrl:null, dcLabel:null,
+      unitPrice: roofPrices[state.roofing], priceUnit:'Kč/m²',
+      buyQty: q => `${q} m²`,
+      rowTotal: q => Math.round(+q * roofPrices[state.roofing]),
+      warn: state.roofing==='epdm' ? '⚠️ V Hornbach jsou tenké pásy — pro střechu objednat 1,2 mm u spec. dodavatele' : '' },
+    // 11: Vruty 4.5×70 kg → packs of 200ks
+    { group:'Spojovací materiál',
+      hbUrl:`${HB}/p/vrut-do-dreva-4-5x70-zapustna-hlava-200-ks/10324768/`,
+      hbLabel:'Vrut 4,5×70 zápustná hlava 200 ks — 335 Kč/bal.',
+      dcUrl:null, dcLabel:null,
+      unitPrice:335, priceUnit:'Kč/200 ks',
+      buyQty: q => `${Math.ceil(+q*120/200)} bal. × 200 ks`,
+      rowTotal: q => Math.ceil(+q*120/200)*335,
+      warn:'~120 ks na 1 kg' },
+    // 12: Úhelníky ks
+    { group:'Spojovací materiál',
+      hbUrl:`${HB}/c/zelezarstvi/stavebni-kovani/uhelniky-a-spojky/S12018/`,
+      hbLabel:'Spojovací úhelníky galv. — ~25 Kč/ks',
+      dcUrl:null, dcLabel:null,
+      unitPrice:25, priceUnit:'Kč/ks (odh.)',
+      buyQty: q => `${q} ks`, rowTotal: q => +q*25, warn:'' },
+    // 13: Třmeny ks
+    { group:'Spojovací materiál',
+      hbUrl:`${HB}/c/zelezarstvi/stavebni-kovani/uhelniky-a-spojky/S12018/`,
+      hbLabel:'Třmeny pro 50×100 — ~30 Kč/ks',
+      dcUrl:null, dcLabel:null,
+      unitPrice:30, priceUnit:'Kč/ks (odh.)',
+      buyQty: q => `${q} ks`, rowTotal: q => +q*30, warn:'' },
+    // 14: Základy / zemní vruty
+    { group:'Základy',
+      hbUrl:`${HB}/p/zemni-vrut-bpp-68-x-650-mm-typ-2-s-vickem/6718379/`,
+      hbLabel:'Zemní vrut BPP 68×650 mm typ 2 — 799 Kč/ks',
+      dcUrl:`${DC}/k-spojovaci-a-kotevni-sortiment`, dcLabel:'Dřevocentrum — zemní vruty',
+      unitPrice:799, priceUnit:'Kč/ks',
+      buyQty: () => `${nScrews} ks`,
+      rowTotal: () => nScrews*799,
+      warn:`Pro plochu ${state.length.toFixed(1)}×${state.depth.toFixed(1)} m — ${nScrews} ks @ 1,5 m rozteč` },
+  ];
+
+  let total = 0;
+  let lastGroup = '';
+  const today = new Date().toLocaleDateString('cs-CZ', {day:'numeric',month:'long',year:'numeric'});
+
+  let html = `
+    <div class="shop-banner">
+      ℹ️ <strong>Orientační ceny</strong> z hornbach.cz a drevocentrum-as.cz ke dni ${today}. Ceny jsou bez dopravy, mohou se lišit od aktuálních.
+      Kliknutím na odkaz přejdete přímo na produkt nebo kategorii.
+    </div>
+    <table class="mat" style="table-layout:fixed">
+      <colgroup>
+        <col style="width:18%"><col style="width:12%"><col style="width:8%">
+        <col style="width:11%"><col style="width:34%"><col style="width:8%"><col style="width:9%">
+      </colgroup>
+      <thead><tr>
+        <th>Položka</th><th>Specifikace</th>
+        <th class="num">Množ.</th><th>K objednání</th>
+        <th>Produkt / odkaz</th>
+        <th class="num">Cena/j</th><th class="num">Celkem</th>
+      </tr></thead>
+      <tbody>`;
+
+  mats.forEach((row, i) => {
+    const c = cat[i];
+    if (!c) return;
+    const [label, spec, qty, unit] = row;
+    const grp = c.group;
+    if (grp !== lastGroup) {
+      html += `<tr class="shop-group"><td colspan="7">${grp}</td></tr>`;
+      lastGroup = grp;
+    }
+    const bq = c.buyQty(qty);
+    const rt = (qty === '—') ? null : c.rowTotal(qty);
+    if (rt !== null && !isNaN(rt)) total += rt;
+
+    const hbLink = `<a href="${c.hbUrl}" target="_blank" rel="noopener">🛒 Hornbach</a>`;
+    const dcLink = c.dcUrl ? ` &nbsp;<a href="${c.dcUrl}" target="_blank" rel="noopener" class="dc">🌲 Dřevoc.</a>` : '';
+    const prodLabel = `<span style="display:block;font-size:10px;color:var(--text-2);margin-top:2px">${c.hbLabel}</span>`;
+    const warnHtml = c.warn ? `<span style="display:block;font-size:10px;color:#b05010;margin-top:2px">${c.warn}</span>` : '';
+
+    html += `<tr>
+      <td><strong>${label}</strong>${warnHtml}</td>
+      <td style="font-size:11px">${spec}</td>
+      <td class="num">${qty} <span style="font-size:10px;color:var(--text-2)">${unit}</span></td>
+      <td style="font-size:11px;color:var(--text-2)">${bq}</td>
+      <td>${hbLink}${dcLink}${prodLabel}</td>
+      <td class="num" style="font-size:11px">${c.unitPrice}<br><span style="font-size:9px;color:var(--text-2)">${c.priceUnit}</span></td>
+      <td class="num" style="font-weight:600">${rt===null||isNaN(rt) ? '—' : Math.round(rt).toLocaleString('cs-CZ')+' Kč'}</td>
+    </tr>`;
+  });
+
+  html += `</tbody>
+    <tfoot>
+      <tr class="shop-total">
+        <td colspan="6" style="text-align:right">CELKEM ORIENTAČNĚ (materiál bez dopravy):</td>
+        <td class="num">${Math.round(total).toLocaleString('cs-CZ')} Kč</td>
+      </tr>
+    </tfoot></table>
+    <p style="margin-top:8px;font-size:11px;color:var(--text-2)">
+      Nezahrnuje: dopravu · pojistnou folie pod OSB podlahu · EPDM penetrační nátěr a lepidlo ·
+      nátěr/impregnaci dřevěného obkladu · betonové patky nebo štěrkové lože pokud nevyužíváte zemní vruty.
+      ${state.roofing==='epdm' ? '<br>⚠️ <strong>EPDM:</strong> Pro plochou střechu použijte 1,2 mm střešní EPDM membránu — specializovaní dodavatelé (Fatrafol, DEK, Izoleuro) nebo požádejte Hornbach o objednávku.' : ''}
+    </p>`;
+
+  cont.innerHTML = html;
+}
+
 /* ===== Rebuild pipeline ===== */
 function rebuildAll() {
   enforceZones();
@@ -1605,6 +1824,7 @@ function rebuildAll() {
   updateReadouts();
   drawPlan(); drawFront(); drawSide(); drawFraming();
   renderMaterials();
+  renderShopping();
   renderShelvesList();
 }
 
