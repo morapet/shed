@@ -212,7 +212,8 @@
 
     <h2>Základy</h2>
     <div class="radio-group">
-      <label><input type="radio" name="foundation" value="pads" checked/> Betonové patky</label>
+      <label><input type="radio" name="foundation" value="screws" checked/> Zemní vruty (BPP 68×650)</label>
+      <label><input type="radio" name="foundation" value="pads"/> Betonové patky</label>
       <label><input type="radio" name="foundation" value="strip"/> Pásový základ</label>
       <label><input type="radio" name="foundation" value="gravel"/> Štěrk + impregnované trámy</label>
     </div>
@@ -274,7 +275,7 @@ window.addEventListener('load', initApp);
 const state = {
   length: 4.5, depth: 1.2, back: 2.5, front: 2.2,
   z1: 1.0, z3: 1.0,
-  foundation: 'pads',
+  foundation: 'screws',
   roofing: 'epdm',
   layers: { frame: true, walls: true, roof: true, zones: true, dims: false, shelves: true, tank: true, doors: true },
   shelves: [
@@ -782,6 +783,37 @@ function buildShed() {
   });
 
 
+  /* ---- GROUND SCREWS ---- */
+  if (state.foundation === 'screws') {
+    const screwShaftMat = new THREE.MeshLambertMaterial({ color: 0x777777 });
+    const screwCapMat   = new THREE.MeshLambertMaterial({ color: 0x333333 });
+    // Generate perimeter positions at ~1.5m spacing on back and front edges
+    const screwPos = [];
+    const spacing15 = 1.5;
+    for (let x = 0; x <= L + 0.01; x += spacing15) screwPos.push([Math.min(x, L), 0]);
+    for (let x = 0; x <= L + 0.01; x += spacing15) screwPos.push([Math.min(x, L), D]);
+    // Deduplicate corners
+    const seen = new Set();
+    screwPos.filter(([x, z]) => {
+      const k = `${x.toFixed(2)},${z.toFixed(2)}`;
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    }).forEach(([sx, sz]) => {
+      // Shaft: 650 mm long, 68 mm dia — show 150 mm above grade + 500 mm below
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.038, 0.65, 8), screwShaftMat);
+      shaft.position.set(sx, -0.175, sz); // center at -175 mm (150 above, 500 below)
+      groups.frame.add(shaft);
+      // Cap plate on top (square flange)
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, 0.14), screwCapMat);
+      cap.position.set(sx, 0.02, sz);
+      groups.frame.add(cap);
+      // M8 nut indicator (tiny box)
+      const nut = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.02, 0.025), screwCapMat);
+      nut.position.set(sx, 0.055, sz);
+      groups.frame.add(nut);
+    });
+  }
+
   /* ---- VENTILATION ---- */
   // 1. Fascia board — vertical board closing the rafter tails at the front overhang
   const fasciaH = 0.15;
@@ -971,7 +1003,7 @@ function wireLayers() {
 
 function wireOptions() {
   document.querySelectorAll('input[name="foundation"]').forEach(r => {
-    r.addEventListener('change', () => { state.foundation = r.value; renderMaterials(); });
+    r.addEventListener('change', () => { state.foundation = r.value; renderMaterials(); renderShopping(); buildShed(); });
   });
   document.querySelectorAll('input[name="roofing"]').forEach(r => {
     r.addEventListener('change', () => { state.roofing = r.value; renderMaterials(); });
@@ -1520,7 +1552,9 @@ function calcMaterials() {
   const screwsKg = Math.ceil(((floorJoistsM + rimJoistsM + wallStudsM + raftersM + platesM) / 5) * 0.1);
   const brackets = rafterCount * 2 + joistCount * 2 + 20;
 
+  const screwCount = Math.max(8, Math.ceil(2 * (L + D) / 1.5));
   const foundationNote = {
+    screws: `Zemní vruty BPP 68×650 mm — ${screwCount} ks @ 1,5 m rozteč`,
     pads: 'Betonové patky ~800 mm',
     strip: 'Pásový základ (beton)',
     gravel: 'Štěrkové lože + impreg. trámy'
@@ -1547,7 +1581,7 @@ function calcMaterials() {
     ['Vruty 4.5×70', 'Galvanizované', screwsKg, 'kg', '—'],
     ['Úhelníky', '90° galv. 40×40×40', brackets, 'ks', '—'],
     ['Třmeny', 'Pro 50×100', joistCount + rafterCount, 'ks', '—'],
-    ['Základy', foundationNote, '—', '—', '—']
+    ['Základy', foundationNote, state.foundation === 'screws' ? screwCount : '—', state.foundation === 'screws' ? 'ks' : '—', state.foundation === 'screws' ? '799 Kč/ks → Hornbach' : '—']
   ];
 }
 
@@ -1739,15 +1773,26 @@ function renderShopping() {
       dcUrl:null, dcLabel:null,
       unitPrice:30, priceUnit:'Kč/ks (odh.)',
       buyQty: q => `${q} ks`, rowTotal: q => +q*30, warn:'' },
-    // 14: Základy / zemní vruty
-    { group:'Základy',
+    // 14: Základy — screws or other
+    state.foundation === 'screws' ? {
+      group:'Základy',
       hbUrl:`${HB}/p/zemni-vrut-bpp-68-x-650-mm-typ-2-s-vickem/6718379/`,
       hbLabel:'Zemní vrut BPP 68×650 mm typ 2 — 799 Kč/ks',
       dcUrl:`${DC}/k-spojovaci-a-kotevni-sortiment`, dcLabel:'Dřevocentrum — zemní vruty',
       unitPrice:799, priceUnit:'Kč/ks',
-      buyQty: () => `${nScrews} ks`,
-      rowTotal: () => nScrews*799,
-      warn:`Pro plochu ${state.length.toFixed(1)}×${state.depth.toFixed(1)} m — ${nScrews} ks @ 1,5 m rozteč` },
+      buyQty: q => `${+q} ks`,
+      rowTotal: q => +q * 799,
+      warn:`Rozteč 1,5 m · rohy + střed každé strany · max. zatížení 350 kg/vr.` }
+    : {
+      group:'Základy',
+      hbUrl:`${HB}/s/betonové+patky`,
+      hbLabel: state.foundation==='pads' ? 'Betonové patky — hledat Hornbach' :
+               state.foundation==='strip' ? 'Beton — Hornbach' : 'Štěrk frakce 8/16 — Hornbach',
+      dcUrl:null, dcLabel:null,
+      unitPrice:0, priceUnit:'—',
+      buyQty: () => 'dle projektu',
+      rowTotal: () => 0,
+      warn:'Cena závisí na místních podmínkách' },
   ];
 
   let total = 0;
